@@ -17,11 +17,11 @@ Assumptions: the database keeps the original table/column layout (UUID text ids,
 
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
-| T1 | S1,S3 | Foundation: schema migrations, models, Inertia + Svelte + Tailwind setup, shared TS libs/components, security headers, secret box, rate limiter, audit, admin auth (login/logout/guard), admin layout, home + error pages, create-admin command | inline | pending | |
-| T2 | S2 | Clients: list/create/edit/delete, logo upload + serving, brand editor | delegated (parallel) | pending | |
-| T3 | S2 | Assessments: list/dashboard, create, general tab (edit, access password, publish, duplicate, next measurement), questions editor, Word/Excel import + templates | delegated (parallel) | pending | |
-| T4 | S2 | Participants (manual + Excel/CSV import + template) and invitations (template, email send, copy) | delegated (parallel) | pending | |
-| T5 | S2 | Participant flow: /a/{slug} access, answer (drafts, submit), delivered page, public logo | delegated (parallel) | pending | |
+| T1 | S1,S3 | Foundation: schema migrations, models, Inertia + Svelte + Tailwind setup, shared TS libs/components, security headers, secret box, rate limiter, audit, admin auth (login/logout/guard), admin layout, home + error pages, admin:create command; shared AssessmentContext + AssessmentLayout, Brand, Theme, Import\Table | inline | done (36 PHPUnit + 14 vitest green) | `57b8af1`, `42a4e82`, next |
+| T2 | S2 | Clients: list/create/edit/delete, logo upload + admin/public logo serving, brand editor | delegated (parallel wave 1) | in progress | |
+| T3 | S2 | Assessments: list/dashboard, create, general tab (edit, access password, publish, duplicate, delete, next measurement), questions editor, Word/Excel import + templates | delegated (parallel wave 1) | in progress | |
+| T4 | S2 | Participants (manual + Excel/CSV import + template) and invitations (template, email send, copy) | delegated (parallel wave 1) | in progress | |
+| T5 | S2 | Participant flow: /a/{slug} access, answer (drafts, submit), delivered page | delegated (parallel wave 1) | in progress | |
 | T6 | S2 | Reports + Excel/PDF exports, client report + exports, measurements comparison + exports, audit page | delegated | pending | |
 | T7 | S2,S4 | AI analysis (anonymize, prompts, chunking, cache by input hash) as queued job + scheduler | delegated | pending | |
 | T8 | S1,S5 | Packaging for cPanel, README deployment guide, backup command | inline | pending | |
@@ -32,4 +32,6 @@ Assumptions: the database keeps the original table/column layout (UUID text ids,
 - **L2** Host has no Node and the user cannot install it ("en el servidor no esta node instalado y no lo puedo instalar"). User chose Laravel: "con laravel para subirlo alli"; approved start: "si dale".
 - **L3** Original repo HEAD `92b4d02`. Node bundle was built and verified under Linux Node 22 (works), but is unusable on this host.
 - **L4** Scaffold: Laravel 12.70.1, inertia-laravel 2.0.28, phpspreadsheet 5, dompdf 3.1.6; svelte 5.57, @inertiajs/svelte 2.3, TS 6 (svelte-check requires ≤6). Commit `61903c2` on main; work on `feat/port-laravel`.
+- **L6** Route declaration: T2–T5 are four independent units with disjoint edit surfaces, each far heavier than a subagent start → Writer trigger (a), launched together as wave 1. T6/T7 depend on T3/T4 services → wave 2. Parent owns git, installs and the final seam check (full suite + build).
+- **L7** Conventions for every unit: same table/column layout as the original; models in app/Models (UUID + ms timestamps via `UsesUuidAndMsTimestamps`, time via `App\Support\Clock::nowMs()`); admin = `$request->attributes->get('admin')`; audit via `App\Security\Audit::log`; validation messages copied verbatim from the original zod schemas; general form error key `form`, flash `success`/`error`; pages under resources/js/Pages, assessment tabs wrapped in `AssessmentLayout` with `context = AssessmentContext::props($a)`; forms with `useForm`/`router` from `@inertiajs/svelte`.
 - **L5** Host check (user terminal output): ea-php83 = 8.3.36; extensions listed in S1; CLI `max_execution_time=0`, `memory_limit=2048M`, `upload_max_filesize=256M`.
