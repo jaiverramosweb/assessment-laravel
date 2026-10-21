@@ -4,7 +4,9 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test": "vitest --run",
+        "check": "svelte-check --tsconfig ./tsconfig.json"
     },
     "devDependencies": {
         "@inertiajs/svelte": "^2.3.29",

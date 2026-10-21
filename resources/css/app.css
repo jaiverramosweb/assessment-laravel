@@ -1,11 +1,47 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/forms';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+/* Tipografías incluidas en la app (la CSP no permite cargar fuentes de terceros). */
+@import '@fontsource-variable/mulish';
+@import '@fontsource-variable/rubik';
 
+/*
+ * Identidad visual SISTEL (brandboard):
+ * - ink: "negro azul petróleo" (#1a1c23) de la barra lateral y los títulos; #2a303f es el gris oscuro.
+ * - brand: "azul tech" (#374ef7), color de acento (acciones principales, "opción esperada", progreso).
+ *   Con texto blanco encima tiene contraste 5,8:1; brand-700 (#2a3cc9) se usa para texto sobre blanco.
+ * - canvas: "gris claro" (#eaedef) del fondo general.
+ * - Tipografía: Mulish para textos y Rubik para títulos.
+ * Las advertencias usan la escala amber de Tailwind.
+ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+	--font-sans: 'Mulish Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-display: 'Rubik Variable', 'Mulish Variable', ui-sans-serif, system-ui, sans-serif;
+	/* Los títulos usan font-extrabold: en Rubik se ve muy pesado, el brandboard usa Rubik Bold (700). */
+	--font-weight-extrabold: 700;
+
+	--color-brand-50: #eef1fe;
+	--color-brand-100: #dfe4fe;
+	--color-brand-200: #c3ccfc;
+	--color-brand-300: #9aa9fa;
+	--color-brand-400: #6b7ef8;
+	--color-brand-500: #4f63f7;
+	--color-brand-600: #374ef7;
+	--color-brand-700: #2a3cc9;
+	--color-brand-800: #22309f;
+	--color-brand-900: #1d2a7d;
+
+	--color-ink-300: #ced3d8;
+	--color-ink-400: #9aa1ae;
+	--color-ink-700: #3a4152;
+	--color-ink-800: #2a303f;
+	--color-ink-900: #22252e;
+	--color-ink-950: #1a1c23;
+
+	--color-canvas: #eaedef;
+}
+
+body {
+	background: var(--color-canvas);
+	color: var(--color-ink-950);
 }
