@@ -17,7 +17,7 @@ Route::middleware('admin')->prefix('admin')->group(function () {
     }
 });
 
-// Public participant routes (/a/{slug}...).
-if (is_file(__DIR__.'/participant.php')) {
-    require __DIR__.'/participant.php';
+// Public routes (/a/{slug}...): every file in routes/public/.
+foreach (glob(__DIR__.'/public/*.php') as $file) {
+    require $file;
 }
