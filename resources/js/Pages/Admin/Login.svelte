@@ -3,6 +3,8 @@
 
 	const destino = new URL($page.url, 'http://x').search;
 	const form = useForm({ email: '', password: '' });
+	// General login error (key `form`), not tied to a field.
+	const formError = $derived(($form.errors as Record<string, string | undefined>).form);
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -45,9 +47,9 @@
 			onsubmit={submit}
 			class="mt-8 space-y-5 rounded-2xl border border-slate-200 bg-white p-7 shadow-lg shadow-ink-950/5"
 		>
-			{#if $form.errors.form}
+			{#if formError}
 				<p role="alert" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
-					{$form.errors.form}
+					{formError}
 				</p>
 			{/if}
 

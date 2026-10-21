@@ -1,21 +1,9 @@
-<script lang="ts" module>
-	/** Resultados de las acciones ?/logo, ?/quitarLogo, ?/colores y ?/coloresPlataforma. */
-	export type BrandFormState = {
-		logoError?: string;
-		logoSaved?: boolean;
-		logoRemoved?: boolean;
-		themeValues?: { primary: string; accent: string };
-		themeErrors?: Record<string, string>;
-		themeSaved?: boolean;
-		themeReset?: boolean;
-	} | null;
-</script>
-
 <script lang="ts">
 	// Logo y colores de un cliente, con vista previa de la pantalla de ingreso del participante.
-	import { enhance } from '$app/forms';
+	import { page, router, useForm } from '@inertiajs/svelte';
 	import { ui } from '@/lib/ui';
 	import ClientLogo from '@/components/ClientLogo.svelte';
+	import type { SharedProps } from '@/types';
 	import {
 		DEFAULT_ACCENT,
 		DEFAULT_PRIMARY,
@@ -27,23 +15,66 @@
 	} from '@/lib/theme';
 
 	let {
+		action,
 		logoUrl,
 		themePrimary,
 		themeAccent,
-		previewTitle,
-		form
+		previewTitle
 	}: {
+		/** Client URL: the logo and colors are saved at `${action}/logo` and `${action}/colores`. */
+		action: string;
 		logoUrl: string | null;
 		themePrimary: string | null;
 		themeAccent: string | null;
 		previewTitle: string;
-		form: BrandFormState;
 	} = $props();
 
+	// Results: success messages arrive as flash, errors under the keys logo, primary and accent.
+	const shared = $derived($page.props as unknown as SharedProps);
+	const success = $derived(shared.flash.success);
+	const errors = $derived(shared.errors ?? {});
+	const keep = { preserveState: true, preserveScroll: true } as const;
+
+	const logoForm = useForm<{ logo: File | null }>({ logo: null });
+	let logoInput: HTMLInputElement | undefined = $state();
+
+	function uploadLogo(event: SubmitEvent) {
+		event.preventDefault();
+		$logoForm.post(`${action}/logo`, {
+			...keep,
+			forceFormData: true,
+			onSuccess: () => {
+				$logoForm.reset();
+				if (logoInput) logoInput.value = '';
+			}
+		});
+	}
+
+	function removeLogo(event: SubmitEvent) {
+		event.preventDefault();
+		router.delete(`${action}/logo`, keep);
+	}
+
 	// svelte-ignore state_referenced_locally
-	let primary = $state(form?.themeValues?.primary ?? themePrimary ?? DEFAULT_PRIMARY);
+	let primary = $state(themePrimary ?? DEFAULT_PRIMARY);
 	// svelte-ignore state_referenced_locally
-	let accent = $state(form?.themeValues?.accent ?? themeAccent ?? DEFAULT_ACCENT);
+	let accent = $state(themeAccent ?? DEFAULT_ACCENT);
+	let savingTheme = $state(false);
+
+	function saveColors(event: SubmitEvent) {
+		event.preventDefault();
+		router.post(
+			`${action}/colores`,
+			{ primary, accent },
+			{ ...keep, onStart: () => (savingTheme = true), onFinish: () => (savingTheme = false) }
+		);
+	}
+
+	function platformColors() {
+		primary = DEFAULT_PRIMARY;
+		accent = DEFAULT_ACCENT;
+		router.delete(`${action}/colores`, keep);
+	}
 	const customTheme = $derived(!!(themePrimary || themeAccent));
 	const previewStyle = $derived(
 		themeStyle({
@@ -79,10 +110,9 @@
 		</div>
 		<form
 			method="POST"
-			action="?/logo"
 			enctype="multipart/form-data"
 			class="flex flex-wrap items-end gap-3"
-			use:enhance
+			onsubmit={uploadLogo}
 		>
 			<div>
 				<label for="logo" class={ui.label}>Imagen (PNG, JPG o WebP · máx. 2 MB)</label>
@@ -92,20 +122,24 @@
 					type="file"
 					accept="image/png,image/jpeg,image/webp"
 					required
+					bind:this={logoInput}
+					onchange={(e) => ($logoForm.logo = e.currentTarget.files?.[0] ?? null)}
 					class="mt-1 block text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold hover:file:bg-slate-200"
 				/>
 			</div>
-			<button class={ui.btnSecondary}>{logoUrl ? 'Reemplazar logo' : 'Subir logo'}</button>
+			<button class={ui.btnSecondary} disabled={$logoForm.processing}
+				>{logoUrl ? 'Reemplazar logo' : 'Subir logo'}</button
+			>
 		</form>
 		{#if logoUrl}
-			<form method="POST" action="?/quitarLogo" use:enhance>
+			<form method="POST" onsubmit={removeLogo}>
 				<button class={ui.btnDanger}>Quitar logo</button>
 			</form>
 		{/if}
 	</div>
-	{#if form?.logoError}<p class="mt-3 {ui.alertError}" role="alert">{form.logoError}</p>{/if}
-	{#if form?.logoSaved}<p class="mt-3 {ui.alertSuccess}" role="status">Logo actualizado.</p>{/if}
-	{#if form?.logoRemoved}<p class="mt-3 {ui.alertSuccess}" role="status">Logo eliminado.</p>{/if}
+	{#if errors.logo}<p class="mt-3 {ui.alertError}" role="alert">{errors.logo}</p>{/if}
+	{#if success === 'Logo actualizado.'}<p class="mt-3 {ui.alertSuccess}" role="status">Logo actualizado.</p>{/if}
+	{#if success === 'Logo eliminado.'}<p class="mt-3 {ui.alertSuccess}" role="status">Logo eliminado.</p>{/if}
 </section>
 
 <!-- Colores -->
@@ -117,14 +151,7 @@
 	</p>
 
 	<div class="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-		<form
-			method="POST"
-			action="?/colores"
-			class="flex flex-col gap-5"
-			use:enhance={() =>
-				async ({ update }) =>
-					update({ reset: false })}
-		>
+		<form method="POST" class="flex flex-col gap-5" onsubmit={saveColors}>
 			{#each [{ id: 'primary', label: 'Color principal', hint: 'Franja superior e instrucciones (reemplaza el azul oscuro).', ok: isHexColor(primary), warning: primaryWarning }, { id: 'accent', label: 'Color de acento', hint: 'Botones, barra de progreso y opción seleccionada.', ok: isHexColor(accent), warning: accentWarning }] as field (field.id)}
 				<div>
 					<label for="{field.id}-hex" class={ui.label}>{field.label}</label>
@@ -171,34 +198,28 @@
 							⚠ {field.warning}
 						</p>
 					{/if}
-					{#if form?.themeErrors?.[field.id]}
-						<p class={ui.fieldError} role="alert">{form.themeErrors[field.id]}</p>
+					{#if errors[field.id]}
+						<p class={ui.fieldError} role="alert">{errors[field.id]}</p>
 					{/if}
 				</div>
 			{/each}
 
 			<div class="flex flex-wrap gap-2">
-				<button class={ui.btnPrimary}>Guardar colores</button>
+				<button class={ui.btnPrimary} disabled={savingTheme}>Guardar colores</button>
 				{#if customTheme}
-					<button
-						type="submit"
-						formaction="?/coloresPlataforma"
-						class={ui.btnSecondary}
-						onclick={() => {
-							primary = DEFAULT_PRIMARY;
-							accent = DEFAULT_ACCENT;
-						}}>Usar colores de la plataforma</button
+					<button type="button" class={ui.btnSecondary} onclick={platformColors}
+						>Usar colores de la plataforma</button
 					>
 				{/if}
 			</div>
-			{#if form?.themeSaved}
+			{#if success === 'Colores guardados.'}
 				<p class={ui.alertSuccess} role="status">
 					Colores guardados.{primaryWarning || accentWarning
 						? ' Quedó un tono claro: revise que el texto se lea bien en la vista previa.'
 						: ''}
 				</p>
 			{/if}
-			{#if form?.themeReset}
+			{#if success === 'Se restablecieron los colores de la plataforma.'}
 				<p class={ui.alertSuccess} role="status">Se restablecieron los colores de la plataforma.</p>
 			{/if}
 		</form>

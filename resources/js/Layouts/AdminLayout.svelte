@@ -6,7 +6,7 @@
 
 	let { children }: { children: Snippet } = $props();
 
-	const props = $derived($page.props as unknown as SharedProps);
+	const shared = $derived($page.props as unknown as SharedProps);
 	const pathname = $derived(new URL($page.url, 'http://x').pathname);
 
 	const links = [
@@ -20,7 +20,7 @@
 		return pathname === href || pathname.startsWith(href + '/');
 	}
 
-	const name = $derived(props.admin?.name ?? '');
+	const name = $derived(shared.admin?.name ?? '');
 	const initials = $derived(
 		name
 			.split(/\s+/)
@@ -136,11 +136,11 @@
 
 	<main class="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-10">
 		<div class="mx-auto max-w-6xl">
-			{#if props.flash?.success}
-				<p role="status" class="mb-6 {ui.alertSuccess}">{props.flash.success}</p>
+			{#if shared.flash?.success}
+				<p role="status" class="mb-6 {ui.alertSuccess}">{shared.flash.success}</p>
 			{/if}
-			{#if props.flash?.error}
-				<p role="alert" class="mb-6 {ui.alertError}">{props.flash.error}</p>
+			{#if shared.flash?.error}
+				<p role="alert" class="mb-6 {ui.alertError}">{shared.flash.error}</p>
 			{/if}
 			{@render children()}
 		</div>
