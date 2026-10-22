@@ -18,12 +18,12 @@ Assumptions: the database keeps the original table/column layout (UUID text ids,
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
 | T1 | S1,S3 | Foundation: schema migrations, models, Inertia + Svelte + Tailwind setup, shared TS libs/components, security headers, secret box, rate limiter, audit, admin auth (login/logout/guard), admin layout, home + error pages, admin:create command; shared AssessmentContext + AssessmentLayout, Brand, Theme, Import\Table | inline | done (36 PHPUnit + 14 vitest green) | `57b8af1`, `42a4e82`, next |
-| T2 | S2 | Clients: list/create/edit/delete, logo upload + admin/public logo serving, brand editor | delegated (parallel wave 1) | in progress | |
-| T3 | S2 | Assessments: list/dashboard, create, general tab (edit, access password, publish, duplicate, delete, next measurement), questions editor, Word/Excel import + templates | delegated (parallel wave 1) | in progress | |
-| T4 | S2 | Participants (manual + Excel/CSV import + template) and invitations (template, email send, copy) | delegated (parallel wave 1) | in progress | |
-| T5 | S2 | Participant flow: /a/{slug} access, answer (drafts, submit), delivered page | delegated (parallel wave 1) | in progress | |
-| T6 | S2 | Reports + Excel/PDF exports, client report + exports, measurements comparison + exports, audit page | delegated | pending | |
-| T7 | S2,S4 | AI analysis (anonymize, prompts, chunking, cache by input hash) as queued job + scheduler | delegated | pending | |
+| T2 | S2 | Clients: list/create/edit/delete, logo upload + admin/public logo serving, brand editor | delegated (parallel wave 1) | done (25 tests, RED observed) | `d0a9636` |
+| T3 | S2 | Assessments: list/dashboard, create, general tab (edit, access password, publish, duplicate, delete, next measurement), questions editor, Word/Excel import + templates | delegated (parallel wave 1) | done | see L8 |
+| T4 | S2 | Participants (manual + Excel/CSV import + template) and invitations (template, email send, copy) | delegated (parallel wave 1) | done | see L8 |
+| T5 | S2 | Participant flow: /a/{slug} access, answer (drafts, submit), delivered page | delegated (parallel wave 1) | done | see L8 |
+| T6 | S2 | Reports + Excel/PDF exports, client report + exports, measurements comparison + exports, audit page | delegated (parallel wave 2) | in progress | |
+| T7 | S2,S4 | AI analysis (anonymize, prompts, chunking, cache by input hash) as queued job + scheduler | delegated (parallel wave 2) | in progress | |
 | T8 | S1,S5 | Packaging for cPanel, README deployment guide, backup command | inline | pending | |
 
 ## Log
@@ -35,3 +35,5 @@ Assumptions: the database keeps the original table/column layout (UUID text ids,
 - **L6** Route declaration: T2–T5 are four independent units with disjoint edit surfaces, each far heavier than a subagent start → Writer trigger (a), launched together as wave 1. T6/T7 depend on T3/T4 services → wave 2. Parent owns git, installs and the final seam check (full suite + build).
 - **L7** Conventions for every unit: same table/column layout as the original; models in app/Models (UUID + ms timestamps via `UsesUuidAndMsTimestamps`, time via `App\Support\Clock::nowMs()`); admin = `$request->attributes->get('admin')`; audit via `App\Security\Audit::log`; validation messages copied verbatim from the original zod schemas; general form error key `form`, flash `success`/`error`; pages under resources/js/Pages, assessment tabs wrapped in `AssessmentLayout` with `context = AssessmentContext::props($a)`; forms with `useForm`/`router` from `@inertiajs/svelte`.
 - **L5** Host check (user terminal output): ea-php83 = 8.3.36; extensions listed in S1; CLI `max_execution_time=0`, `memory_limit=2048M`, `upload_max_filesize=256M`.
+- **L8** Wave 1 results (each with RED observed first): T3 `6db5d72` (55 tests), T4 `5acb54a` (40), T5 `cc85ce4` (40), T2 `d0a9636` (25). Seam check: 199 PHPUnit + 14 vitest green, `npm run build` OK. Accepted deviations: failed form actions redirect 303 with one-shot props (Inertia); participant answers read from raw JSON (no trimming); no in-memory per-key lock (DB constraints instead); copyable invitation message passes through the session (review in final verification); access password reveal is a JSON call. Shared fixes by parent: AdminLayout `props`→`shared`, Login `formError`, `trimStrings(except: ['confirm'])`.
+- **L9** Wave 2 contract: `AiStore::latest` + `AiReportProps::for` (`ai`, `analyses`, `aiPending`) committed `29778eb`; T6 and T7 launched in parallel.
