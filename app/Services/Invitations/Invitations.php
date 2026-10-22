@@ -7,9 +7,9 @@ use App\Mail\InvitationMail;
 use App\Models\Assessment;
 use App\Security\Audit;
 use App\Security\SecretBox;
+use App\Services\ParticipantFlow\Dates;
 use App\Services\Participants\Participants;
 use Closure;
-use IntlDateFormatter;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
@@ -54,14 +54,13 @@ final class Invitations
         ];
     }
 
-    /** "1 de noviembre de 2026, 8:00 a. m." in the assessment's time zone (es-CO). */
+    /**
+     * "1 de noviembre de 2026 a las 8:00 a. m." in the assessment's time zone: the same
+     * `formatLongDateTime` the original used for invitations and participant screens.
+     */
     public static function formatLongDateTime(int $ms, string $timezone): string
     {
-        $formatter = new IntlDateFormatter('es_CO', IntlDateFormatter::LONG, IntlDateFormatter::SHORT, $timezone);
-        $text = (string) $formatter->format(intdiv($ms, 1000));
-
-        // Non-breaking spaces so "6:00 p. m." is not split across lines.
-        return preg_replace('/[\s\x{202F}\x{00A0}]([ap])\.[\s\x{00A0}]?m\./u', "\u{00A0}$1.\u{00A0}m.", $text);
+        return Dates::long($ms, $timezone);
     }
 
     /** Current access password when it is stored encrypted; null otherwise. */

@@ -43,7 +43,7 @@ final class Format
         return ($pp > 0 ? '+' : '−').abs($pp).' pp';
     }
 
-    /** "1 de noviembre de 2026, 8:00 a. m." */
+    /** "1 de noviembre de 2026 a las 8:00 a. m." (same as the original `formatLongDateTime`). */
     public static function longDateTime(int $ms, string $timeZone = self::DEFAULT_TIMEZONE): string
     {
         return Invitations::formatLongDateTime($ms, $timeZone);

@@ -74,6 +74,8 @@ Genera `dist/assessment-app.zip` con el código, `vendor/` (dependencias PHP) y 
 ```bash
 PHP=/opt/cpanel/ea-php83/root/usr/bin/php
 cd ~/assessment-app
+# Debe listar las 6 extensiones (las usan Excel y PDF); si falta alguna, actívela en "Select PHP Version".
+$PHP -m | grep -iE "^(xmlreader|xmlwriter|simplexml|iconv|zip|gd)$"
 cp .env.example .env
 $PHP artisan key:generate
 touch database/database.sqlite

@@ -116,7 +116,7 @@ class ExportTest extends TestCase
         $client = Client::create(['name' => 'Acme', 'theme_primary' => '#112233', 'theme_accent' => 'rojo']);
         $a = Scenarios::assessment(['title' => 'Con marca', 'client_id' => $client->id]);
         $meta = ExportMeta::forAssessment($a, ['area' => 'TI', 'cargo' => 'Analista'], self::NOW);
-        $this->assertSame("Del 1 de noviembre de 2026, 8:00\u{00A0}a.\u{00A0}m. al 15 de noviembre de 2026, 6:00\u{00A0}p.\u{00A0}m.", $meta['period']);
+        $this->assertSame("Del 1 de noviembre de 2026 a las 8:00\u{00A0}a.\u{00A0}m. al 15 de noviembre de 2026 a las 6:00\u{00A0}p.\u{00A0}m.", $meta['period']);
         $this->assertSame('Área: TI · Cargo: Analista', $meta['filtersLabel']);
         $this->assertSame('#112233', $meta['themePrimary']);
         $this->assertNull($meta['themeAccent']);

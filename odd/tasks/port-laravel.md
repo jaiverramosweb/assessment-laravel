@@ -22,9 +22,9 @@ Assumptions: the database keeps the original table/column layout (UUID text ids,
 | T3 | S2 | Assessments: list/dashboard, create, general tab (edit, access password, publish, duplicate, delete, next measurement), questions editor, Word/Excel import + templates | delegated (parallel wave 1) | done | see L8 |
 | T4 | S2 | Participants (manual + Excel/CSV import + template) and invitations (template, email send, copy) | delegated (parallel wave 1) | done | see L8 |
 | T5 | S2 | Participant flow: /a/{slug} access, answer (drafts, submit), delivered page | delegated (parallel wave 1) | done | see L8 |
-| T6 | S2 | Reports + Excel/PDF exports, client report + exports, measurements comparison + exports, audit page | delegated (parallel wave 2) | in progress | |
-| T7 | S2,S4 | AI analysis (anonymize, prompts, chunking, cache by input hash) as queued job + scheduler | delegated (parallel wave 2) | in progress | |
-| T8 | S1,S5 | Packaging for cPanel, README deployment guide, backup command | inline | pending | |
+| T6 | S2 | Reports + Excel/PDF exports, client report + exports, measurements comparison + exports, audit page | delegated (parallel wave 2) | done | see L10 |
+| T7 | S2,S4 | AI analysis (anonymize, prompts, chunking, cache by input hash) as queued job + scheduler | delegated (parallel wave 2) | done | see L10 |
+| T8 | S1,S5 | Packaging for cPanel, README deployment guide, backup command | inline | done | `8d2b871` + fixes |
 
 ## Log
 
@@ -37,3 +37,5 @@ Assumptions: the database keeps the original table/column layout (UUID text ids,
 - **L5** Host check (user terminal output): ea-php83 = 8.3.36; extensions listed in S1; CLI `max_execution_time=0`, `memory_limit=2048M`, `upload_max_filesize=256M`.
 - **L8** Wave 1 results (each with RED observed first): T3 `6db5d72` (55 tests), T4 `5acb54a` (40), T5 `cc85ce4` (40), T2 `d0a9636` (25). Seam check: 199 PHPUnit + 14 vitest green, `npm run build` OK. Accepted deviations: failed form actions redirect 303 with one-shot props (Inertia); participant answers read from raw JSON (no trimming); no in-memory per-key lock (DB constraints instead); copyable invitation message passes through the session (review in final verification); access password reveal is a JSON call. Shared fixes by parent: AdminLayout `props`→`shared`, Login `formError`, `trimStrings(except: ['confirm'])`.
 - **L9** Wave 2 contract: `AiStore::latest` + `AiReportProps::for` (`ai`, `analyses`, `aiPending`) committed `29778eb`; T6 and T7 launched in parallel.
+- **L10** Wave 2: T7 AI `8262dd6` (38 tests; writer did not report RED evidence), T6 reports `6401103` (45 tests, RED observed). T8 `8d2b871`: `db:backup` (VACUUM INTO, needs SQLite ≥ 3.27), `scripts/build-release.sh` → `dist/assessment-app.zip` (15 MB), README cPanel guide. Release smoke test in a scratch dir: migrate, admin:create, config/route/view cache, `/` 200, `/admin` 303 → login, built assets served.
+- **L11** Independent verifier (clone at `6401103`): S1–S4 pass, no change-caused blockers; S5 failed only because the clone predated `8d2b871`. Advisories fixed: invitation/export dates now use the original long format ("… a las 8:00 a. m.", confirmed with Node ICU 78.2), `phpunit.xml` no longer points at a missing `tests/Unit`, `SESSION_ENCRYPT=true` so the copyable message is encrypted at rest, README checks xmlreader/xmlwriter/simplexml/iconv/zip/gd. Final: 286 PHPUnit + 14 vitest green. Open: host SQLite version not yet confirmed by the user.
