@@ -3,14 +3,15 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\Process\Process;
 
 /**
  * Hot backup of the database (safe while the app is in use).
  * - SQLite: `VACUUM INTO` writes a consistent snapshot, including what is still in the WAL.
- * - MySQL/MariaDB: `mysqldump --single-transaction` writes a consistent SQL dump. The
- *   password goes in a temporary options file, never on the command line.
+ * - MySQL/MariaDB: an SQL dump written by PHP itself inside one consistent-snapshot
+ *   transaction (the host disables proc_open, so mysqldump cannot be run). Restore it with
+ *   phpMyAdmin (Import) or `mysql base < archivo.sql`.
  *
  *   php artisan db:backup                         → storage/backups/app-YYYYMMDD-HHMMSS.db|.sql (UTC)
  *   php artisan db:backup --dir=/home/u/respaldos → another folder
@@ -21,6 +22,9 @@ class BackupDatabase extends Command
     protected $signature = 'db:backup {--dir= : Carpeta de destino} {--keep= : Cantidad de respaldos a conservar}';
 
     protected $description = 'Respaldo en caliente de la base de datos (SQLite o MySQL/MariaDB)';
+
+    /** Rows per INSERT statement. */
+    private const ROWS_PER_INSERT = 100;
 
     public function handle(): int
     {
@@ -41,11 +45,15 @@ class BackupDatabase extends Command
 
         if ($sqlite) {
             DB::statement('VACUUM INTO ?', [$dest]);
-        } elseif (($error = $this->dumpMysql($dest)) !== null) {
-            @unlink($dest);
-            $this->error("No se pudo crear el respaldo: {$error}");
+        } else {
+            try {
+                $this->dumpMysql(DB::connection(), $dest);
+            } catch (\Throwable $e) {
+                @unlink($dest);
+                $this->error("No se pudo crear el respaldo: {$e->getMessage()}");
 
-            return self::FAILURE;
+                return self::FAILURE;
+            }
         }
         $this->info(sprintf('Respaldo creado: %s (%d KB)', $dest, round(filesize($dest) / 1024)));
 
@@ -68,46 +76,63 @@ class BackupDatabase extends Command
         return self::SUCCESS;
     }
 
-    /** Returns null on success, or the error message. */
-    private function dumpMysql(string $dest): ?string
+    /** Writes every table (structure and rows) as SQL, from one consistent snapshot. */
+    private function dumpMysql(Connection $db, string $dest): void
     {
-        $c = DB::connection()->getConfig();
-        $options = tempnam(sys_get_temp_dir(), 'dump');
-        chmod($options, 0600);
-        file_put_contents($options, implode("\n", [
-            '[client]',
-            'user="'.addcslashes((string) $c['username'], '"\\').'"',
-            'password="'.addcslashes((string) $c['password'], '"\\').'"',
-            ...(! empty($c['unix_socket']) ? ['socket="'.$c['unix_socket'].'"'] : [
-                'host="'.$c['host'].'"',
-                'port='.(int) $c['port'],
-            ]),
-        ])."\n");
-
+        $pdo = $db->getPdo();
         $out = fopen($dest, 'wb');
-        try {
-            $process = new Process([
-                (string) config('assessments.mysqldump_path'),
-                '--defaults-extra-file='.$options,
-                '--single-transaction',
-                '--quick',
-                '--no-tablespaces',
-                '--default-character-set=utf8mb4',
-                (string) $c['database'],
-            ]);
-            $process->setTimeout(600);
-            $process->run(function ($type, $buffer) use ($out) {
-                if ($type === Process::OUT) {
-                    fwrite($out, $buffer);
-                }
-            });
+        if (! $out) {
+            throw new \RuntimeException("No se pudo escribir {$dest}");
+        }
 
-            return $process->isSuccessful() ? null : (trim($process->getErrorOutput()) ?: 'mysqldump terminó con error');
-        } catch (\Throwable $e) {
-            return $e->getMessage();
+        try {
+            $db->statement('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+            $db->unprepared('START TRANSACTION WITH CONSISTENT SNAPSHOT');
+
+            fwrite($out, '-- Respaldo de '.$db->getDatabaseName().' ('.gmdate('Y-m-d H:i:s')." UTC)\n");
+            fwrite($out, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n");
+
+            $tables = array_map(
+                fn ($row) => array_values((array) $row)[0],
+                $db->select("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'"),
+            );
+            foreach ($tables as $table) {
+                $quoted = '`'.str_replace('`', '``', $table).'`';
+                $create = array_values((array) $db->selectOne("SHOW CREATE TABLE {$quoted}"))[1];
+                fwrite($out, "\nDROP TABLE IF EXISTS {$quoted};\n{$create};\n");
+
+                $binary = [];
+                foreach ($db->select("SHOW COLUMNS FROM {$quoted}") as $col) {
+                    if (preg_match('/blob|binary/i', $col->Type)) {
+                        $binary[$col->Field] = true;
+                    }
+                }
+
+                $batch = [];
+                foreach ($db->cursor("SELECT * FROM {$quoted}") as $row) {
+                    $values = [];
+                    foreach ((array) $row as $field => $value) {
+                        $values[] = match (true) {
+                            $value === null => 'NULL',
+                            isset($binary[$field]) => $value === '' ? "''" : '0x'.bin2hex($value),
+                            default => $pdo->quote((string) $value),
+                        };
+                    }
+                    $batch[] = '('.implode(',', $values).')';
+                    if (count($batch) === self::ROWS_PER_INSERT) {
+                        fwrite($out, "INSERT INTO {$quoted} VALUES ".implode(",\n", $batch).";\n");
+                        $batch = [];
+                    }
+                }
+                if ($batch) {
+                    fwrite($out, "INSERT INTO {$quoted} VALUES ".implode(",\n", $batch).";\n");
+                }
+            }
+
+            fwrite($out, "\nSET FOREIGN_KEY_CHECKS = 1;\n");
         } finally {
+            $db->unprepared('COMMIT');
             fclose($out);
-            @unlink($options);
         }
     }
 }

@@ -73,6 +73,12 @@ final class AuthRateLimiter
     public static function recordFailure(array $keys, ?int $now = null): ?int
     {
         $now ??= Clock::nowMs();
+        // The rows exist before the transaction locks them: locking a missing row on MySQL takes a
+        // gap lock, and simultaneous first failures on a new key then deadlock on the insert.
+        DB::table('auth_attempts')->insertOrIgnore(array_map(
+            fn ($k) => ['key' => $k['key'], 'failures' => 0, 'window_start' => $now, 'locked_until' => null],
+            $keys,
+        ));
 
         return DB::transaction(function () use ($keys, $now) {
             $locked = null;

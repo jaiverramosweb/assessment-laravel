@@ -20,7 +20,4 @@ return [
         'model' => env('ANTHROPIC_MODEL', 'claude-opus-5-5'),
         'timeout_ms' => (int) env('AI_TIMEOUT_MS', 180000),
     ],
-
-    // Program used by `db:backup` on MySQL/MariaDB.
-    'mysqldump_path' => env('MYSQLDUMP_PATH', 'mysqldump'),
 ];

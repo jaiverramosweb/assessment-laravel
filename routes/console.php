@@ -110,7 +110,16 @@ Artisan::command('app:maintenance', function () {
     $this->info('Mantenimiento completado.');
 })->purpose('Limpia sesiones vencidas e intentos antiguos');
 
-// cPanel runs `php artisan schedule:run` every minute (see README).
-Schedule::command('app:maintenance')->hourly();
-// Queued jobs (AI analysis) run from cron, where PHP has no web time limit.
-Schedule::command('queue:work --stop-when-empty --max-time=50 --tries=1')->everyMinute()->withoutOverlapping();
+// cPanel runs `php artisan schedule:run` every minute (see README). The host disables
+// proc_open, so every task runs inside the scheduler's own process (Schedule::call), never
+// as a child process (Schedule::command).
+Schedule::call(fn () => Artisan::call('app:maintenance'))->name('app:maintenance')->hourly();
+// Queued jobs (AI analysis) run from cron, where PHP has no web time limit. The overlap lock
+// expires after 30 minutes, longer than the slowest AI job, so a killed run cannot block it.
+Schedule::call(fn () => Artisan::call('queue:work', [
+    '--stop-when-empty' => true,
+    '--max-time' => 50,
+    '--tries' => 1,
+]))->name('queue:work')->everyMinute()->withoutOverlapping(30);
+// Daily database backup at 03:00 UTC, keeping the last 14.
+Schedule::call(fn () => Artisan::call('db:backup', ['--keep' => 14]))->name('db:backup')->dailyAt('03:00');
