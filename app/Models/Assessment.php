@@ -21,6 +21,14 @@ class Assessment extends Model
 
     protected $guarded = [];
 
+    // MySQL TEXT columns have no database default (see the schema migration).
+    protected $attributes = [
+        'description' => '',
+        'instructions' => '',
+        'invite_subject' => '',
+        'invite_body' => '',
+    ];
+
     // Secrets stay on the server; the decrypted password is only sent on explicit request.
     protected $hidden = ['access_password_hash', 'access_password_enc'];
 

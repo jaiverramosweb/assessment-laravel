@@ -124,9 +124,14 @@ final class Answers
         }
 
         $submissionId = $ctx['submission']->id;
-        DB::transaction(function () use ($ops, $submissionId, $now) {
+        $assessmentId = $ctx['assessment']->id;
+        DB::transaction(function () use ($ops, $submissionId, $assessmentId, $now) {
+            // Shared lock: an admin replacing the questions (exclusive lock) waits for this save,
+            // then sees the responses and refuses (MySQL; SQLite serializes writes).
+            DB::table('assessments')->where('id', $assessmentId)->sharedLock()->first(['id']);
             // Checked again inside the transaction: if it was delivered meanwhile, nothing is saved.
-            $submission = DB::table('submissions')->where('id', $submissionId)->first(['submitted_at']);
+            // The row lock (MySQL) serializes this with submit(); SQLite already serializes writes.
+            $submission = DB::table('submissions')->where('id', $submissionId)->lockForUpdate()->first(['submitted_at']);
             if (! $submission || $submission->submitted_at) {
                 throw new AlreadySubmittedException;
             }
@@ -170,6 +175,8 @@ final class Answers
         $submissionId = $ctx['submission']->id;
 
         $result = DB::transaction(function () use ($ctx, $submissionId, $now) {
+            // Lock first so a save running at the same time cannot change the answers checked below.
+            DB::table('submissions')->where('id', $submissionId)->lockForUpdate()->first(['id']);
             $saved = self::savedFor($submissionId);
             $missing = [];
             foreach (self::questionsFor($ctx['assessment']->id) as $i => $q) {

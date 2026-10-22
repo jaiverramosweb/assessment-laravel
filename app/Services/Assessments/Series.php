@@ -29,7 +29,8 @@ final class Series
     public static function createNextMeasurement(string $sourceId, string $adminId, ?string $ip = null): ?Assessment
     {
         return DB::transaction(function () use ($sourceId, $adminId, $ip) {
-            $source = Assessment::find($sourceId);
+            // Locked so two simultaneous clicks cannot create two measurements with the same order.
+            $source = Assessment::lockForUpdate()->find($sourceId);
             if (! $source) {
                 return null;
             }

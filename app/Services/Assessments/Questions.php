@@ -2,6 +2,7 @@
 
 namespace App\Services\Assessments;
 
+use App\Models\Assessment;
 use App\Models\Question;
 use App\Models\QuestionOption;
 use App\Security\Audit;
@@ -69,7 +70,9 @@ final class Questions
         ?string $ip = null,
     ): void {
         DB::transaction(function () use ($assessmentId, $list, $adminId, $action, $ip) {
-            // Checked inside the transaction so a response cannot slip in between.
+            // Checked inside the transaction so a response cannot slip in between. On MySQL the
+            // assessment row lock waits for answer saves in progress (they hold a shared lock).
+            Assessment::whereKey($assessmentId)->lockForUpdate()->first(['id']);
             $locked = AssessmentContext::questionsLockReason($assessmentId);
             if ($locked) {
                 throw new QuestionsLockedError($locked);

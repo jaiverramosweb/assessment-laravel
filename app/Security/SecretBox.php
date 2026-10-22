@@ -2,13 +2,15 @@
 
 namespace App\Security;
 
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
  * Reversible encryption (AES-256-GCM) for each assessment's access password, so the admin
  * can see it again. The key:
  * - comes from ACCESS_PASSWORD_KEY (64 hex chars = 32 bytes) when set;
- * - otherwise it is created once in a file next to the database (clave-cifrado.key).
+ * - otherwise it is created once in clave-cifrado.key: next to the SQLite file, or in
+ *   database/ on MySQL/MariaDB.
  * Without the key nothing can be decrypted: include it in backups (or set it in .env).
  *
  * Payload format (same as the original app): "v1:<iv b64>:<tag b64>:<ciphertext b64>".
@@ -69,12 +71,17 @@ final class SecretBox
             return hex2bin($envKey);
         }
 
-        $database = (string) config('database.connections.sqlite.database');
-        if ($database === '' || $database === ':memory:') {
-            return random_bytes(32);
+        // SQLite: next to the database file (an in-memory test database gets a throwaway key).
+        // MySQL/MariaDB: always in database/, whatever folder PHP runs from (web or cron).
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $database = (string) DB::connection()->getConfig('database');
+            if ($database === '' || $database === ':memory:') {
+                return random_bytes(32);
+            }
+            $file = dirname($database).DIRECTORY_SEPARATOR.self::KEY_FILE;
+        } else {
+            $file = database_path(self::KEY_FILE);
         }
-
-        $file = dirname($database).DIRECTORY_SEPARATOR.self::KEY_FILE;
         if (is_file($file)) {
             $key = hex2bin(trim((string) file_get_contents($file)));
             if ($key === false || strlen($key) !== 32) {

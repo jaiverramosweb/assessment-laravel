@@ -77,7 +77,8 @@ final class AuthRateLimiter
         return DB::transaction(function () use ($keys, $now) {
             $locked = null;
             foreach ($keys as ['key' => $key, 'policy' => $policy]) {
-                $row = AuthAttempt::find($key);
+                // Locked (MySQL) so simultaneous failures are all counted; SQLite serializes writes.
+                $row = AuthAttempt::lockForUpdate()->find($key);
                 $windowExpired = ! $row || $now - $row->window_start > $policy['windowMs'];
                 $failures = $windowExpired ? 1 : $row->failures + 1;
 
@@ -94,7 +95,7 @@ final class AuthRateLimiter
             }
 
             return $locked;
-        });
+        }, 3); // Two first failures on a new key can deadlock on MySQL: retried.
     }
 
     /** After a successful login the email counter is cleared (not the IP one). */

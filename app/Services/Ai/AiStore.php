@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Models\AiAnalysis;
+use App\Support\InsertOrder;
 
 /** Read side of the stored AI analyses (used by the reports page and the exports). */
 final class AiStore
@@ -20,7 +21,7 @@ final class AiStore
         $out = [];
         $rows = AiAnalysis::where('assessment_id', $assessmentId)
             ->orderByDesc('created_at')
-            ->orderByDesc('rowid')
+            ->orderByDesc(InsertOrder::column())
             ->get();
         foreach ($rows as $r) {
             $key = $r->question_id ?? 'global';

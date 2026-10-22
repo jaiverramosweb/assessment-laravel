@@ -7,6 +7,7 @@ use App\Models\Participant;
 use App\Models\Submission;
 use App\Security\Audit;
 use App\Support\Clock;
+use App\Support\InsertOrder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -55,7 +56,7 @@ final class Participants
                 ->join('participants', 'email_log.participant_id', '=', 'participants.id')
                 ->where('participants.assessment_id', $assessmentId)
                 ->orderByDesc('email_log.created_at')
-                ->orderByDesc('email_log.rowid')
+                ->orderByDesc(InsertOrder::column('email_log'))
                 ->get(['email_log.participant_id', 'email_log.status', 'email_log.error']);
             foreach ($logs as $log) {
                 $lastEmails[$log->participant_id] ??= $log;
@@ -107,6 +108,8 @@ final class Participants
     public static function upsert(string $assessmentId, array $list, string $adminId, ?string $ip = null): array
     {
         return DB::transaction(function () use ($assessmentId, $list, $adminId, $ip) {
+            // Two simultaneous imports run one after the other (MySQL; SQLite serializes writes).
+            DB::table('assessments')->where('id', $assessmentId)->lockForUpdate()->first(['id']);
             $existing = Participant::where('assessment_id', $assessmentId)->get()->keyBy('email');
 
             $created = 0;

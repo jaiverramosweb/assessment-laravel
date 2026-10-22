@@ -16,8 +16,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Current time in ms, computed with julianday so it works on older SQLite builds.
-        $nowMs = DB::raw("(CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER))");
+        // On SQLite the ms timestamps and empty texts get a database default, as in the original
+        // (julianday works on older SQLite builds). MySQL 5.7 accepts neither an expression nor a
+        // TEXT default, so on MySQL/MariaDB the models always fill these columns.
+        $sqlite = DB::connection()->getDriverName() === 'sqlite';
+        $nowMs = $sqlite ? DB::raw("(CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER))") : null;
+        $emptyText = $sqlite ? '' : null;
 
         Schema::create('admin_users', function (Blueprint $t) use ($nowMs) {
             $t->string('id')->primary();
@@ -50,14 +54,18 @@ return new class extends Migration
             $t->bigInteger('updated_at')->default($nowMs);
             $t->foreign('created_by_id')->references('id')->on('admin_users')->nullOnDelete();
         });
+        if (! $sqlite) {
+            // Logos up to 2 MB: a MySQL BLOB holds only 64 KB.
+            DB::statement('ALTER TABLE clients MODIFY logo_data MEDIUMBLOB NULL');
+        }
 
-        Schema::create('assessments', function (Blueprint $t) use ($nowMs) {
+        Schema::create('assessments', function (Blueprint $t) use ($nowMs, $emptyText) {
             $t->string('id')->primary();
             $t->string('client_id')->nullable();
             $t->string('slug')->unique();
             $t->string('title');
-            $t->text('description')->default('');
-            $t->text('instructions')->default('');
+            $t->text('description')->default($emptyText);
+            $t->text('instructions')->default($emptyText);
             $t->bigInteger('starts_at');
             $t->bigInteger('ends_at');
             $t->string('timezone')->default('America/Bogota');
@@ -66,8 +74,8 @@ return new class extends Migration
             $t->text('access_password_enc')->nullable();
             $t->integer('open_max_chars')->default(8000);
             $t->string('status')->default('borrador');
-            $t->text('invite_subject')->default('');
-            $t->text('invite_body')->default('');
+            $t->text('invite_subject')->default($emptyText);
+            $t->text('invite_body')->default($emptyText);
             $t->string('duplicated_from_id')->nullable();
             $t->string('series_id')->nullable();
             $t->integer('series_order')->nullable();
@@ -109,7 +117,8 @@ return new class extends Migration
             $t->string('email');
             $t->string('area')->nullable();
             $t->string('cargo')->nullable();
-            $t->text('extra')->nullable();
+            // Up to 50 extra columns of 500 characters: more than a MySQL TEXT holds.
+            $t->mediumText('extra')->nullable();
             $t->string('source')->default('cargado');
             $t->bigInteger('invited_at')->nullable();
             $t->bigInteger('created_at')->default($nowMs);
@@ -145,7 +154,8 @@ return new class extends Migration
             $t->string('submission_id');
             $t->string('question_id');
             $t->string('option_id')->nullable();
-            $t->text('text')->nullable();
+            // Open answers allow up to 50,000 characters: more than a MySQL TEXT holds.
+            $t->mediumText('text')->nullable();
             $t->bigInteger('updated_at')->default($nowMs);
             $t->foreign('submission_id')->references('id')->on('submissions')->cascadeOnDelete();
             $t->foreign('question_id')->references('id')->on('questions')->cascadeOnDelete();
@@ -161,7 +171,8 @@ return new class extends Migration
             $t->string('question_id')->nullable();
             $t->string('scope');
             $t->string('model');
-            $t->text('result');
+            // JSON of the analysis; may exceed the 64 KB of a MySQL TEXT.
+            $t->longText('result');
             // Hash of the analyzed answers: tells whether there are new answers.
             $t->string('input_hash');
             $t->integer('response_count');
@@ -172,10 +183,12 @@ return new class extends Migration
             $t->foreign('created_by_id')->references('id')->on('admin_users')->nullOnDelete();
             $t->index(['assessment_id', 'question_id'], 'ai_analyses_assessment_idx');
         });
+        $this->addInsertOrder('ai_analyses', $sqlite);
 
         // Failed attempt counters for rate limiting, e.g. "admin-login:ip:1.2.3.4".
         Schema::create('auth_attempts', function (Blueprint $t) {
-            $t->string('key')->primary();
+            // "participant-login:email:<254 chars>:ip:<ip>" exceeds 255 characters.
+            $t->string('key', 400)->primary();
             $t->integer('failures')->default(0);
             $t->bigInteger('window_start');
             $t->bigInteger('locked_until')->nullable();
@@ -205,6 +218,19 @@ return new class extends Migration
             $t->foreign('sent_by_id')->references('id')->on('admin_users')->nullOnDelete();
             $t->index('participant_id', 'email_log_participant_idx');
         });
+        $this->addInsertOrder('email_log', $sqlite);
+    }
+
+    /**
+     * Rows created in the same millisecond are told apart by insertion order: SQLite's
+     * implicit rowid, or an auto-increment `seq` column on MySQL/MariaDB.
+     * See App\Support\InsertOrder.
+     */
+    private function addInsertOrder(string $table, bool $sqlite): void
+    {
+        if (! $sqlite) {
+            DB::statement("ALTER TABLE {$table} ADD seq BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE");
+        }
     }
 
     public function down(): void

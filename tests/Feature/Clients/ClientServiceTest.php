@@ -79,7 +79,7 @@ class ClientServiceTest extends TestCase
         $this->assertNull(ClientService::readLogo($c->id));
     }
 
-    public function test_logo_bytes_round_trip_as_a_sqlite_blob(): void
+    public function test_logo_bytes_round_trip_as_a_blob(): void
     {
         $c = ClientService::create('Acme', $this->adminId);
         // Every byte value, including NUL and invalid UTF-8 sequences.
@@ -87,10 +87,22 @@ class ClientServiceTest extends TestCase
         ClientService::setLogo($c->id, $bytes, $this->adminId);
 
         $this->assertSame($bytes, ClientService::readLogo($c->id)['data']);
-        $this->assertSame('blob', DB::scalar('select typeof(logo_data) from clients where id = ?', [$c->id]));
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->assertSame('blob', DB::scalar('select typeof(logo_data) from clients where id = ?', [$c->id]));
+        }
         $this->assertSame(strlen($bytes), (int) DB::scalar('select length(logo_data) from clients where id = ?', [$c->id]));
         // The bytes never travel in serialized models.
         $this->assertArrayNotHasKey('logo_data', Client::find($c->id)->toArray());
+    }
+
+    public function test_a_logo_of_the_maximum_size_is_stored_whole(): void
+    {
+        $c = ClientService::create('Acme', $this->adminId);
+        $png = self::png();
+        $bytes = $png.str_repeat("\x00", ClientService::LOGO_MAX_BYTES - strlen($png));
+        ClientService::setLogo($c->id, $bytes, $this->adminId);
+
+        $this->assertSame(strlen($bytes), strlen(ClientService::readLogo($c->id)['data']));
     }
 
     public function test_names_are_unique_case_insensitively_and_assessments_are_counted(): void
