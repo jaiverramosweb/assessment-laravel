@@ -7,7 +7,8 @@ Es la versión en **Laravel** de la plataforma original (SvelteKit + Node), hech
 un hosting cPanel **sin Node**: el servidor solo necesita PHP 8.3. Los assets se compilan en el
 equipo de desarrollo y se suben ya listos.
 
-**Stack:** Laravel 12 · PHP 8.3 · Inertia 2 + Svelte 5 · Tailwind CSS 4 · SQLite ·
+**Stack:** Laravel 12 · PHP 8.3 · Inertia 2 + Svelte 5 · Tailwind CSS 4 · MySQL/MariaDB
+(producción) o SQLite (desarrollo) ·
 PhpSpreadsheet · Dompdf · API de Anthropic.
 
 ## Qué hace
@@ -36,18 +37,28 @@ npm run dev                       # en otra terminal: php artisan serve → http
 
 | Comando                                    | Qué hace                                                          |
 | ------------------------------------------ | ----------------------------------------------------------------- |
-| `php artisan test`                         | Pruebas del servidor (PHPUnit)                                    |
+| `php artisan test`                         | Pruebas del servidor (PHPUnit) sobre SQLite en memoria            |
 | `npm test` / `npm run check`               | Pruebas de las librerías del frontend / verificación de tipos     |
 | `npm run build`                            | Compila los assets en `public/build`                              |
 | `php artisan admin:create`                 | Crea un administrador (`--reset --email=…` cambia su contraseña)  |
 | `php artisan db:backup`                    | Respaldo en caliente (`--dir=…`, `--keep=14`)                     |
 | `scripts/build-release.sh`                 | Arma `dist/assessment-app.zip` para subir a cPanel                |
 
+Para correr las pruebas sobre MySQL/MariaDB (como en producción), cree una base vacía con
+collation `utf8mb4_bin` y ejecute:
+
+```bash
+DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=assess_test DB_USERNAME=root DB_PASSWORD= php artisan test
+```
+
 ## Despliegue en cPanel (sin Node)
 
 El servidor de destino tiene PHP 8.3 en `/opt/cpanel/ea-php83/root/usr/bin/php`.
 **Ojo:** el comando `php` de la terminal es PHP 8.0. Use siempre la ruta completa de PHP 8.3
 (abajo, `$PHP`).
+
+La base de datos de producción es **MySQL/MariaDB**: el SQLite del servidor es la versión
+3.7.17, demasiado antigua para la aplicación.
 
 ### 1. En su equipo: armar el paquete
 
@@ -68,17 +79,22 @@ Genera `dist/assessment-app.zip` con el código, `vendor/` (dependencias PHP) y 
 3. **MultiPHP Manager** → `assesment.sisteltestserver.com` → **PHP 8.3**.
 4. **SSL/TLS Status** → **Run AutoSSL** para el subdominio. HTTPS es obligatorio: las cookies de
    sesión son `Secure`.
+5. **Bases de datos MySQL** (o **MySQL Database Wizard**):
+   1. Cree una base, por ejemplo `assessments` (cPanel le antepone su usuario:
+      `USUARIO_assessments`).
+   2. Cree un usuario con una contraseña larga y agréguelo a la base con **TODOS LOS PRIVILEGIOS**.
+   3. Anote el nombre completo de la base, el usuario y la contraseña: van en el `.env`.
 
 ### 3. En la terminal de cPanel: configurar (solo la primera vez)
 
 ```bash
 PHP=/opt/cpanel/ea-php83/root/usr/bin/php
 cd ~/assessment-app
-# Debe listar las 6 extensiones (las usan Excel y PDF); si falta alguna, actívela en "Select PHP Version".
-$PHP -m | grep -iE "^(xmlreader|xmlwriter|simplexml|iconv|zip|gd)$"
+# Debe listar las 7 extensiones (pdo_mysql para la base; las demás para Excel y PDF).
+# Si falta alguna, actívela en "Select PHP Version".
+$PHP -m | grep -iE "^(pdo_mysql|xmlreader|xmlwriter|simplexml|iconv|zip|gd)$"
 cp .env.example .env
 $PHP artisan key:generate
-touch database/database.sqlite
 ```
 
 Edite `.env` (Administrador de archivos → Editar) con estos valores:
@@ -88,6 +104,12 @@ APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://assesment.sisteltestserver.com
 SESSION_SECURE_COOKIE=true
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=USUARIO_assessments
+DB_USERNAME=USUARIO_assessments
+DB_PASSWORD=       # la contraseña del usuario de la base
 QUEUE_CONNECTION=database
 DB_QUEUE_RETRY_AFTER=1200
 ACCESS_PASSWORD_KEY=   # pegue la salida de: $PHP -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
@@ -124,12 +146,15 @@ Respaldo diario (por ejemplo `0 3 * * *`):
 /opt/cpanel/ea-php83/root/usr/bin/php /home/USUARIO/assessment-app/artisan db:backup --keep=14 >> /dev/null 2>&1
 ```
 
-Descargue copias de `storage/backups/` fuera del servidor de vez en cuando.
+Cada respaldo es un archivo `.sql` (hecho con `mysqldump`) en `storage/backups/`. Si el comando
+dice que no encuentra `mysqldump`, agregue al `.env` la ruta que muestra `which mysqldump`
+(`MYSQLDUMP_PATH=/usr/bin/mysqldump`). Descargue copias fuera del servidor de vez en cuando;
+también puede exportar la base desde **phpMyAdmin**.
 
 ### Actualizar a una versión nueva
 
 1. Arme el paquete nuevo y súbalo descomprimido **encima** de la carpeta, **sin** tocar `.env`,
-   `database/database.sqlite`, `database/clave-cifrado.key` ni `storage/`.
+   `database/clave-cifrado.key` ni `storage/`.
 2. En la terminal:
 
 ```bash
@@ -140,6 +165,8 @@ $PHP artisan config:cache && $PHP artisan route:cache && $PHP artisan view:cache
 ### Si algo falla
 
 - Errores de la app: `storage/logs/laravel.log`.
+- "Access denied" o "Unknown database" al migrar: revise `DB_DATABASE`, `DB_USERNAME` y
+  `DB_PASSWORD` (con el prefijo `USUARIO_`) y que el usuario esté agregado a la base.
 - Página en blanco o error 500 al iniciar: revise permisos de escritura en `storage/` y
   `bootstrap/cache/`, y que el subdominio use PHP 8.3.
 - "La página venció": la sesión expiró; recargue la página.
