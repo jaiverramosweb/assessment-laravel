@@ -1,32 +1,62 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { page, router } from '@inertiajs/svelte';
 	import { FREQUENCY_LABELS, type StoredAnalysis } from '@/lib/ai-analysis';
 	import { formatDateTime } from '@/lib/format';
 	import { ui } from '@/lib/ui';
 
 	// Panel de análisis con IA de una pregunta abierta (o del análisis global).
 	// Todo el contenido generado por la IA se muestra como texto (nunca {@html}).
+	// El análisis corre en la cola del servidor: mientras está pendiente, el panel recarga
+	// `analyses`, `aiPending` y `aiErrors` cada pocos segundos hasta que termina.
 	let {
+		assessmentId,
 		analysis,
-		action,
 		questionId,
 		configured,
 		timezone,
 		stale = false,
-		error,
-		cachedNotice = false
+		pending = false
 	}: {
+		assessmentId: string;
 		analysis: StoredAnalysis | undefined;
-		action: '?/analizar' | '?/analizarGlobal';
 		questionId?: string;
 		configured: boolean;
 		timezone: string;
 		stale?: boolean;
-		error?: string;
-		cachedNotice?: boolean;
+		pending?: boolean;
 	} = $props();
 
-	let working = $state(false);
+	const POLL_MS = 4000;
+
+	type AiPageProps = { aiErrors?: Record<string, string>; aiCached?: string | null };
+
+	const key = $derived(questionId ?? 'global');
+	const shared = $derived($page.props as unknown as AiPageProps);
+	const error = $derived(shared.aiErrors?.[key]);
+	const cachedNotice = $derived(shared.aiCached === key);
+
+	let sending = $state(false);
+	const working = $derived(sending || pending);
+
+	function analyze() {
+		router.post(
+			`/admin/assessments/${assessmentId}/ia/analizar`,
+			{ ...(questionId ? { questionId } : {}), regenerar: !!analysis },
+			{
+				preserveScroll: true,
+				onStart: () => (sending = true),
+				onFinish: () => (sending = false)
+			}
+		);
+	}
+
+	$effect(() => {
+		if (!pending) return;
+		const timer = setInterval(() => {
+			router.reload({ only: ['analyses', 'aiPending', 'aiErrors'] });
+		}, POLL_MS);
+		return () => clearInterval(timer);
+	});
 
 	const freqStyle = {
 		alta: 'bg-brand-100 text-brand-900 ring-brand-300',
@@ -39,31 +69,17 @@
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<p class="text-sm font-semibold">Análisis con IA</p>
 		{#if configured}
-			<form
-				method="POST"
-				{action}
-				use:enhance={() => {
-					working = true;
-					return async ({ update }) => {
-						await update({ reset: false, invalidateAll: true });
-						working = false;
-					};
-				}}
-			>
-				{#if questionId}<input type="hidden" name="questionId" value={questionId} />{/if}
-				{#if analysis}<input type="hidden" name="force" value="1" />{/if}
-				<button class={analysis ? ui.btnSecondary : ui.btnPrimary} disabled={working}>
-					{#if working}
-						<span
-							class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent"
-							aria-hidden="true"
-						></span>
-						Analizando…
-					{:else}
-						{analysis ? 'Regenerar' : 'Analizar con IA'}
-					{/if}
-				</button>
-			</form>
+			<button type="button" class={analysis ? ui.btnSecondary : ui.btnPrimary} disabled={working} onclick={analyze}>
+				{#if working}
+					<span
+						class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent"
+						aria-hidden="true"
+					></span>
+					Analizando…
+				{:else}
+					{analysis ? 'Regenerar' : 'Analizar con IA'}
+				{/if}
+			</button>
 		{/if}
 	</div>
 
@@ -72,7 +88,7 @@
 			Enviando las respuestas anonimizadas a la IA. Puede tardar uno o dos minutos.
 		</p>
 	{/if}
-	{#if error}
+	{#if error && !working}
 		<p class="mt-3 {ui.alertError}" role="alert">{error}</p>
 	{/if}
 	{#if !configured}
