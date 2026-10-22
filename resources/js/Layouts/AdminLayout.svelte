@@ -10,8 +10,14 @@
 	const pathname = $derived(new URL($page.url, 'http://x').pathname);
 
 	const links = [
-		{ href: '/admin', label: 'Assessments', icon: 'grid', exclude: ['/admin/auditoria', '/admin/clientes'] },
+		{
+			href: '/admin',
+			label: 'Assessments',
+			icon: 'grid',
+			exclude: ['/admin/auditoria', '/admin/clientes', '/admin/usuarios', '/admin/cuenta']
+		},
 		{ href: '/admin/clientes', label: 'Clientes', icon: 'users', exclude: [] },
+		{ href: '/admin/usuarios', label: 'Usuarios', icon: 'user', exclude: [] },
 		{ href: '/admin/auditoria', label: 'Auditoría', icon: 'clock', exclude: [] }
 	];
 
@@ -100,6 +106,19 @@
 								d="M8 10h.01M12 10h.01M16 10h.01"
 							></path></svg
 						>
+					{:else if link.icon === 'user'}
+						<svg
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+							><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg
+						>
 					{:else}
 						<svg
 							width="18"
@@ -125,11 +144,14 @@
 			>
 			<div class="flex min-w-0 flex-col">
 				<span class="truncate text-sm font-semibold text-white">{name}</span>
-				<form method="POST" action="/admin/logout" onsubmit={logout}>
-					<button type="submit" class="text-sm text-ink-400 hover:text-white hover:underline">
-						Cerrar sesión
-					</button>
-				</form>
+				<div class="flex gap-3">
+					<Link href="/admin/cuenta" class="text-sm text-ink-400 hover:text-white hover:underline">Mi cuenta</Link>
+					<form method="POST" action="/admin/logout" onsubmit={logout}>
+						<button type="submit" class="text-sm text-ink-400 hover:text-white hover:underline">
+							Cerrar sesión
+						</button>
+					</form>
+				</div>
 			</div>
 		</div>
 	</header>

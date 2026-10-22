@@ -14,11 +14,13 @@ Branch: `feat/usuarios-y-edicion-participantes` · Delivery: `ask-on-risk` · Ru
 
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
-| T1 | S1 | Participant update: route, service, inline edit UI, tests | inline (no writer reason) | pending | |
-| T2 | S2,S3,S4 | `disabled_at` migration, AdminAuth/AdminSessions changes, Usuarios page + Mi cuenta, sidebar link, tests, README | inline (no writer reason); high risk (auth + migration) → independent verifier | pending | |
+| T1 | S1 | Participant update: route, service, inline edit UI, tests | inline (no writer reason) | done (RED: 2 failed, route missing; GREEN 293 passed) | `7ff422c` |
+| T2 | S2,S3,S4 | `disabled_at` migration, AdminAuth/AdminSessions changes, Usuarios page + Mi cuenta, sidebar link, tests, README | inline (no writer reason); high risk (auth + migration) → independent verifier | done, verifier pending (RED: 12 failed; GREEN 305 passed SQLite, affected 38 passed MySQL) | see L5 |
 
 ## Log
 
 - **L1** (2026-10-22) — Client request, quoted in S1/S2. User: "me ayudas a validar eso en el codigo y ver como le solucionamos eso al cliente".
 - **L2** — User: "crea un plan de trabajo para eso, para que pueda editar esa parte y poder crear o agregar ese rol a otros usuarios creados si ella lo deside en otra pestaña y dime el plan antes de implementarlo".
 - **L3** — User on roles: "por los momentos que el que ella desida tenga el rol como ella si mas adelnate quiere agrear otro se agregan". Plan approved.
+- **L4** — T1 done. Edit route `POST /admin/assessments/{id}/participantes/{participantId}`, audit action `participantes.editado` added to the closed list.
+- **L5** — T2 done. Migration `2026_10_22_000001_add_disabled_at_to_admin_users`. "Last active admin cannot be deactivated" is guaranteed by the self check: the requester is always active and cannot deactivate themself. Changing own password is rate limited (scope `admin-password`, same policy as login). Deactivated admins get the same login message as a wrong password and their surviving sessions are rejected in `AdminSessions::validate`. Deploy: `$PHP artisan migrate --force` (already in the README update steps) plus the new `public/build`.

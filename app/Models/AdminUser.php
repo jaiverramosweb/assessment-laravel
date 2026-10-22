@@ -15,7 +15,12 @@ class AdminUser extends Model
 
     protected $hidden = ['password_hash'];
 
-    protected $casts = ['last_login_at' => 'integer', 'created_at' => 'integer'];
+    protected $casts = ['last_login_at' => 'integer', 'disabled_at' => 'integer', 'created_at' => 'integer'];
+
+    public function isActive(): bool
+    {
+        return $this->disabled_at === null;
+    }
 
     /** Data the UI receives for the logged-in admin. */
     public function toSessionArray(): array

@@ -48,6 +48,12 @@ final class AdminSessions
         if (! $session || ! $session->admin) {
             return null;
         }
+        // A deactivated admin loses access even if a session row survived.
+        if (! $session->admin->isActive()) {
+            $session->delete();
+
+            return null;
+        }
 
         // Besides the inactivity expiration, a session never lasts more than MAX_SESSION_HOURS.
         $absoluteEnd = $session->created_at + self::MAX_SESSION_HOURS * self::HOUR;
@@ -75,6 +81,12 @@ final class AdminSessions
     public static function invalidateAll(string $adminId): void
     {
         AdminSession::where('admin_id', $adminId)->delete();
+    }
+
+    /** Closes every session of an admin except the one of `$token` (e.g. after changing their own password). */
+    public static function invalidateOthers(string $adminId, string $token): void
+    {
+        AdminSession::where('admin_id', $adminId)->whereKeyNot(Tokens::hash($token))->delete();
     }
 
     public static function deleteExpired(?int $now = null): void

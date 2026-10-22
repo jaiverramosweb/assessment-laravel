@@ -34,7 +34,8 @@ final class AdminAuth
         // An Argon2 verification always runs so the response time is even.
         $valid = Passwords::verify($user?->password_hash ?? Passwords::dummyHash(), $password);
 
-        if (! $user || ! $valid) {
+        // A deactivated admin gets the same answer as a wrong password.
+        if (! $user || ! $valid || ! $user->isActive()) {
             $lockedNow = AuthRateLimiter::recordFailure($keys, $now);
             Audit::log($user?->id, 'admin.login_fallido', metadata: ['email' => $email], ip: $ip);
 

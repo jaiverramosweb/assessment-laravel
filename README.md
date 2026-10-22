@@ -15,7 +15,7 @@ PhpSpreadsheet · Dompdf · API de Anthropic.
 
 | Para quién        | Funciones                                                                                                                                                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Administrador** | Assessments (crear, editar, duplicar, archivar, eliminar) · preguntas (editor, Excel/CSV y Word) · contraseña de acceso · participantes · invitaciones · reportes · Excel y PDF · clientes · mediciones · IA · auditoría |
+| **Administrador** | Assessments (crear, editar, duplicar, archivar, eliminar) · preguntas (editor, Excel/CSV y Word) · contraseña de acceso · participantes (editar nombre, área y cargo desde la tabla) · invitaciones · reportes · Excel y PDF · clientes · mediciones · IA · usuarios del panel y "Mi cuenta" · auditoría |
 | **Participante**  | Abre el enlace, escribe la contraseña de acceso y su correo, responde con autoguardado (puede salir y volver) y entrega una sola vez                                                                                          |
 
 El detalle de cada función es el mismo de la plataforma original.
@@ -156,6 +156,10 @@ $PHP artisan admin:create --email=ana@empresa.com --name="Ana Pérez"
 unset ADMIN_PASSWORD
 $PHP artisan config:cache && $PHP artisan route:cache && $PHP artisan view:cache
 ```
+
+El primer administrador se crea en la terminal. Los demás se crean desde la pestaña **Usuarios** del
+panel (también se les cambia la contraseña o se desactivan), y cada uno cambia la suya en **Mi cuenta**.
+Todos tienen acceso completo.
 
 ### 5. Cron (análisis con IA, mantenimiento y respaldo)
 

@@ -14,6 +14,8 @@ final class Audit
         'admin.logout' => 'Cierre de sesión',
         'admin.creado' => 'Administrador creado',
         'admin.password_cambiada' => 'Contraseña de administrador cambiada',
+        'admin.desactivado' => 'Administrador desactivado',
+        'admin.reactivado' => 'Administrador reactivado',
         'assessment.creado' => 'Assessment creado',
         'assessment.editado' => 'Assessment editado',
         'assessment.duplicado' => 'Assessment duplicado',
