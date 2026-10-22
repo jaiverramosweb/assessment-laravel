@@ -23,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['admin_session', 'participant_session']);
         $middleware->web(append: [LoadAdminSession::class, HandleInertiaRequests::class]);
         $middleware->alias(['admin' => RequireAdmin::class]);
+        // Password confirmation must be compared exactly like the password (which is never trimmed).
+        $middleware->trimStrings(except: ['confirm']);
 
         // Behind a reverse proxy, list its IPs (comma separated) so the real client IP is used.
         $proxies = env('TRUSTED_PROXIES');

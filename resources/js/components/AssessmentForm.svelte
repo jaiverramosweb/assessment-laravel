@@ -13,41 +13,39 @@
 </script>
 
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { useForm } from '@inertiajs/svelte';
 	import { ACCESS_MODES, ACCESS_MODE_LABELS } from '@/lib/constants';
 	import { ui } from '@/lib/ui';
 
 	let {
 		values,
-		errors = {},
 		timezones,
 		clients,
-		action = '',
-		submitLabel
+		action,
+		submitLabel,
+		onSaved
 	}: {
 		values: AssessmentFormValues;
-		errors?: Record<string, string>;
 		timezones: string[];
 		clients: { id: string; name: string }[];
-		action?: string;
+		/** URL the form is posted to. */
+		action: string;
 		submitLabel: string;
+		onSaved?: () => void;
 	} = $props();
 
-	let enviando = $state(false);
+	// The typed values stay in the form after a validation error (like the original `form.values`).
+	// svelte-ignore state_referenced_locally
+	const form = useForm<AssessmentFormValues>({ ...values });
+	const errors = $derived($form.errors as Partial<Record<keyof AssessmentFormValues, string>>);
+
+	function submit(event: SubmitEvent) {
+		event.preventDefault();
+		$form.post(action, { preserveScroll: true, onSuccess: () => onSaved?.() });
+	}
 </script>
 
-<form
-	method="POST"
-	{action}
-	class="space-y-6"
-	use:enhance={() => {
-		enviando = true;
-		return async ({ update }) => {
-			await update({ reset: false });
-			enviando = false;
-		};
-	}}
->
+<form method="POST" action={action} class="space-y-6" onsubmit={submit}>
 	<div>
 		<label for="title" class={ui.label}>Título</label>
 		<input
@@ -55,7 +53,7 @@
 			name="title"
 			required
 			maxlength="200"
-			value={values.title}
+			bind:value={$form.title}
 			aria-invalid={!!errors.title}
 			aria-describedby={errors.title ? 'title-error' : undefined}
 			class={ui.input}
@@ -68,7 +66,7 @@
 		<select
 			id="clientId"
 			name="clientId"
-			value={values.clientId}
+			bind:value={$form.clientId}
 			aria-invalid={!!errors.clientId}
 			class={ui.input}
 		>
@@ -83,18 +81,28 @@
 
 	<div>
 		<label for="description" class={ui.label}>Descripción</label>
-		<textarea id="description" name="description" rows="3" maxlength="5000" class={ui.input}
-			>{values.description}</textarea
-		>
+		<textarea
+			id="description"
+			name="description"
+			rows="3"
+			maxlength="5000"
+			class={ui.input}
+			bind:value={$form.description}
+		></textarea>
 		<p class={ui.hint}>Se muestra a los participantes al ingresar.</p>
 		{#if errors.description}<p class={ui.fieldError}>{errors.description}</p>{/if}
 	</div>
 
 	<div>
 		<label for="instructions" class={ui.label}>Instrucciones</label>
-		<textarea id="instructions" name="instructions" rows="4" maxlength="10000" class={ui.input}
-			>{values.instructions}</textarea
-		>
+		<textarea
+			id="instructions"
+			name="instructions"
+			rows="4"
+			maxlength="10000"
+			class={ui.input}
+			bind:value={$form.instructions}
+		></textarea>
 		{#if errors.instructions}<p class={ui.fieldError}>{errors.instructions}</p>{/if}
 	</div>
 
@@ -107,7 +115,7 @@
 				name="startsAt"
 				type="datetime-local"
 				required
-				value={values.startsAt}
+				bind:value={$form.startsAt}
 				aria-invalid={!!errors.startsAt}
 				class={ui.input}
 			/>
@@ -120,7 +128,7 @@
 				name="endsAt"
 				type="datetime-local"
 				required
-				value={values.endsAt}
+				bind:value={$form.endsAt}
 				aria-invalid={!!errors.endsAt}
 				class={ui.input}
 			/>
@@ -128,7 +136,7 @@
 		</div>
 		<div>
 			<label for="timezone" class={ui.label}>Zona horaria</label>
-			<select id="timezone" name="timezone" class={ui.input} value={values.timezone}>
+			<select id="timezone" name="timezone" class={ui.input} bind:value={$form.timezone}>
 				{#each timezones as tz (tz)}
 					<option value={tz}>{tz.replaceAll('_', ' ')}</option>
 				{/each}
@@ -147,7 +155,7 @@
 							type="radio"
 							name="accessMode"
 							value={mode}
-							checked={values.accessMode === mode}
+							bind:group={$form.accessMode}
 							class="mt-0.5 text-brand-600 focus:ring-brand-500"
 						/>
 						<span>
@@ -174,7 +182,7 @@
 				max="50000"
 				step="100"
 				required
-				value={values.openMaxChars}
+				bind:value={$form.openMaxChars}
 				aria-invalid={!!errors.openMaxChars}
 				class={ui.input}
 			/>
@@ -184,8 +192,8 @@
 	</div>
 
 	<div class="flex justify-end">
-		<button type="submit" class={ui.btnPrimary} disabled={enviando}>
-			{enviando ? 'Guardando…' : submitLabel}
+		<button type="submit" class={ui.btnPrimary} disabled={$form.processing}>
+			{$form.processing ? 'Guardando…' : submitLabel}
 		</button>
 	</div>
 </form>
