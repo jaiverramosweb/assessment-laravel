@@ -15,7 +15,7 @@ Branch: `feat/usuarios-y-edicion-participantes` · Delivery: `ask-on-risk` · Ru
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
 | T1 | S1 | Participant update: route, service, inline edit UI, tests | inline (no writer reason) | done (RED: 2 failed, route missing; GREEN 293 passed) | `7ff422c` |
-| T2 | S2,S3,S4 | `disabled_at` migration, AdminAuth/AdminSessions changes, Usuarios page + Mi cuenta, sidebar link, tests, README | inline (no writer reason); high risk (auth + migration) → independent verifier | done, verifier pending (RED: 12 failed; GREEN 305 passed SQLite, affected 38 passed MySQL) | see L5 |
+| T2 | S2,S3,S4 | `disabled_at` migration, AdminAuth/AdminSessions changes, Usuarios page + Mi cuenta, sidebar link, tests, README | inline (no writer reason); high risk (auth + migration) → independent verifier | done, verifier passed (RED: 12 failed; GREEN 305 passed SQLite, affected 38 passed MySQL) | see L5 |
 
 ## Log
 
@@ -24,3 +24,5 @@ Branch: `feat/usuarios-y-edicion-participantes` · Delivery: `ask-on-risk` · Ru
 - **L3** — User on roles: "por los momentos que el que ella desida tenga el rol como ella si mas adelnate quiere agrear otro se agregan". Plan approved.
 - **L4** — T1 done. Edit route `POST /admin/assessments/{id}/participantes/{participantId}`, audit action `participantes.editado` added to the closed list.
 - **L5** — T2 done. Migration `2026_10_22_000001_add_disabled_at_to_admin_users`. "Last active admin cannot be deactivated" is guaranteed by the self check: the requester is always active and cannot deactivate themself. Changing own password is rate limited (scope `admin-password`, same policy as login). Deactivated admins get the same login message as a wrong password and their surviving sessions are rejected in `AdminSessions::validate`. Deploy: `$PHP artisan migrate --force` (already in the README update steps) plus the new `public/build`.
+- **L6** — Independent verifier: S1–S4 met, no blockers; full suite 305 passed in a scratch clone, 6 extra probes passed, `admin:create` create/--reset/duplicate unchanged, migration up/rollback/up on SQLite. Advisories: `admin:create --reset` does not reactivate a deactivated admin; two admins deactivating each other at once could leave zero active (recovery: create a new admin in the terminal); cross-assessment edit returns 303 + flash like `destroy`. Native review: assessed high (auth, audit), consent granted.
+- **L7** — Native review (lenses risk + reliability) of `a8505e0`: approved and acknowledged (lineage `review-bc4b82b89a1da161`, authority burned). Non-blocking follow-ups: last-admin race / mutual deactivation (no transaction), no re-authentication for privileged user actions, test does not assert deactivated session row deletion, `setActive` not idempotent (re-audits on repeat). Next: user decides merge to `main` + push and the cPanel deploy.
