@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Participants;
 
 use App\Http\Controllers\Controller;
+use App\Models\Participant;
 use App\Services\Import\ImportFileError;
 use App\Services\Import\Table;
 use App\Services\Participants\ParticipantExistsError;
@@ -91,6 +92,32 @@ class ParticipantController extends Controller
         $counts = Participants::upsert($a->id, $result['participants'], $request->attributes->get('admin')->id, $request->ip());
 
         return back(303)->with('outcome', ['imported' => $counts]);
+    }
+
+    /** Edits name, area and cargo from the table. The email stays (it is not sent to the validator). */
+    public function update(Request $request, string $id, string $participantId)
+    {
+        $a = AssessmentContext::require($id);
+        $current = Participant::where('id', $participantId)->where('assessment_id', $a->id)->first();
+        if (! $current) {
+            return back(303)->with('outcome', ['editError' => 'El participante no existe.']);
+        }
+
+        $parsed = ParticipantInput::validate([
+            'name' => (string) $request->input('name', ''),
+            'email' => $current->email,
+            'area' => (string) $request->input('area', ''),
+            'cargo' => (string) $request->input('cargo', ''),
+        ]);
+        if (! $parsed['ok']) {
+            return back(303)->withErrors($parsed['errors']);
+        }
+
+        if (! Participants::update($a->id, $current->id, $parsed['data'], $request->attributes->get('admin')->id, $request->ip())) {
+            return back(303)->with('outcome', ['editError' => 'El participante no existe.']);
+        }
+
+        return back(303)->with('outcome', ['edited' => $parsed['data']['name']]);
     }
 
     public function destroy(Request $request, string $id, string $participantId)

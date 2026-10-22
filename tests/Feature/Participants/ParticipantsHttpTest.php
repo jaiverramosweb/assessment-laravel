@@ -218,6 +218,52 @@ class ParticipantsHttpTest extends TestCase
         $this->assertNotNull($other->fresh());
     }
 
+    public function test_edit_updates_name_area_and_cargo_even_after_answering(): void
+    {
+        $admin = $this->actingAsAdmin();
+        $p = $this->createParticipant($this->assessment, ['name' => 'Yibet', 'email' => 'yibet@x.co', 'source' => 'abierto']);
+        Submission::create(['participant_id' => $p->id, 'assessment_id' => $this->assessment->id, 'submitted_at' => 1000]);
+
+        $this->from($this->base)->post("{$this->base}/{$p->id}", [
+            'name' => '  Yibet García ', 'email' => 'otro@x.co', 'area' => ' Talento humano ', 'cargo' => 'Gestora',
+        ])->assertStatus(303)->assertRedirect($this->base)->assertSessionHas('outcome', ['edited' => 'Yibet García']);
+
+        $p->refresh();
+        $this->assertSame('Yibet García', $p->name);
+        $this->assertSame('Talento humano', $p->area);
+        $this->assertSame('Gestora', $p->cargo);
+        // The email is not editable: it pairs people across measurements.
+        $this->assertSame('yibet@x.co', $p->email);
+        $this->assertSame('abierto', $p->source);
+        $log = AuditLog::where('action', 'participantes.editado')->sole();
+        $this->assertSame($admin->id, $log->admin_id);
+        $this->assertSame(['email' => 'yibet@x.co'], $log->metadata);
+
+        // Empty area/cargo clear the value.
+        $this->from($this->base)->post("{$this->base}/{$p->id}", ['name' => 'Yibet García', 'area' => '', 'cargo' => ''])
+            ->assertSessionHas('outcome', ['edited' => 'Yibet García']);
+        $this->assertNull($p->fresh()->area);
+        $this->assertNull($p->fresh()->cargo);
+    }
+
+    public function test_edit_validation_and_other_assessment(): void
+    {
+        $this->actingAsAdmin();
+        $p = $this->createParticipant($this->assessment, ['name' => 'Ana', 'email' => 'ana@x.co', 'area' => 'TI']);
+
+        $this->from($this->base)->post("{$this->base}/{$p->id}", ['name' => 'A', 'area' => str_repeat('x', 101)])
+            ->assertStatus(303)
+            ->assertSessionHasErrors(['name' => 'El nombre debe tener al menos 2 caracteres.', 'area' => 'Área: máximo 100 caracteres.']);
+        $this->assertSame('Ana', $p->fresh()->name);
+        $this->assertSame('TI', $p->fresh()->area);
+
+        $other = $this->createParticipant($this->createAssessment(), ['name' => 'Otro', 'email' => 'otro@x.co']);
+        $this->from($this->base)->post("{$this->base}/{$other->id}", ['name' => 'Cambiado'])
+            ->assertSessionHas('outcome', ['editError' => 'El participante no existe.']);
+        $this->assertSame('Otro', $other->fresh()->name);
+        $this->assertFalse(AuditLog::where('action', 'participantes.editado')->exists());
+    }
+
     public function test_last_email_error_is_listed(): void
     {
         $this->actingAsAdmin();

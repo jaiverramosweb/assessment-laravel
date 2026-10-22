@@ -132,6 +132,26 @@ final class Participants
     }
 
     /**
+     * Edits name, area and cargo of a participant (validated input from ParticipantInput). The email
+     * is never changed: it pairs people across measurements. Allowed after answering. False when
+     * it does not belong to the assessment.
+     *
+     * @param  array{name: string, area: ?string, cargo: ?string}  $input
+     */
+    public static function update(string $assessmentId, string $participantId, array $input, string $adminId, ?string $ip = null): bool
+    {
+        $p = Participant::where('id', $participantId)->where('assessment_id', $assessmentId)->first();
+        if (! $p) {
+            return false;
+        }
+
+        $p->fill(['name' => $input['name'], 'area' => $input['area'], 'cargo' => $input['cargo']])->save();
+        Audit::log($adminId, 'participantes.editado', 'assessment', $assessmentId, ['email' => $p->email], $ip);
+
+        return true;
+    }
+
+    /**
      * Deletes a participant that has not started answering. False when it does not belong to
      * the assessment.
      *

@@ -28,6 +28,7 @@ final class Audit
         'preguntas.editadas' => 'Preguntas editadas',
         'preguntas.importadas' => 'Preguntas importadas',
         'participantes.cargados' => 'Participantes cargados',
+        'participantes.editado' => 'Participante editado',
         'participantes.eliminado' => 'Participante eliminado',
         'invitaciones.enviadas' => 'Invitaciones enviadas',
         'reporte.exportado' => 'Reporte exportado',

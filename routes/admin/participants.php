@@ -9,4 +9,5 @@ Route::get('/assessments/{id}/participantes', [ParticipantController::class, 'in
 Route::post('/assessments/{id}/participantes', [ParticipantController::class, 'store']);
 Route::post('/assessments/{id}/participantes/importar', [ParticipantController::class, 'import']);
 Route::get('/assessments/{id}/participantes/plantilla', [ParticipantController::class, 'template']);
+Route::post('/assessments/{id}/participantes/{participantId}', [ParticipantController::class, 'update']);
 Route::delete('/assessments/{id}/participantes/{participantId}', [ParticipantController::class, 'destroy']);

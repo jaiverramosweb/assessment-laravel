@@ -27,6 +27,8 @@
 		importErrors?: string[];
 		deleted?: boolean;
 		deleteError?: string;
+		edited?: string;
+		editError?: string;
 	} | null;
 
 	type Props = {
@@ -81,6 +83,28 @@
 		const query: Record<string, string> = {};
 		for (const [key, value] of data) if (value) query[key] = String(value);
 		router.get(base, query, { preserveState: true, preserveScroll: true });
+	}
+
+	// Inline edit of one row (name, area, cargo). The email is not editable.
+	let editingId: string | null = $state(null);
+	const editForm = useForm({ name: '', area: '', cargo: '' });
+	const editErrors = $derived($editForm.errors as Record<string, string | undefined>);
+
+	function startEdit(p: ParticipantRow) {
+		$editForm.clearErrors();
+		$editForm.name = p.name;
+		$editForm.area = p.area ?? '';
+		$editForm.cargo = p.cargo ?? '';
+		editingId = p.id;
+	}
+
+	function saveEdit(event: SubmitEvent) {
+		event.preventDefault();
+		$editForm.post(`${base}/${editingId}`, {
+			preserveScroll: true,
+			preserveState: true,
+			onSuccess: () => (editingId = null)
+		});
 	}
 
 	function remove(p: ParticipantRow) {
@@ -224,6 +248,12 @@
 		{#if outcome?.added}
 			<p class={ui.alertSuccess} role="status">Participante agregado: {outcome.added}.</p>
 		{/if}
+		{#if outcome?.edited}
+			<p class={ui.alertSuccess} role="status">Participante actualizado: {outcome.edited}.</p>
+		{/if}
+		{#if outcome?.editError}
+			<p class={ui.alertError} role="alert">{outcome.editError}</p>
+		{/if}
 		{#if outcome?.deleteError}
 			<p class={ui.alertError} role="alert">{outcome.deleteError}</p>
 		{/if}
@@ -296,6 +326,64 @@
 					</thead>
 					<tbody class="divide-y divide-slate-100">
 						{#each participants as p (p.id)}
+							{#if editingId === p.id}
+								<tr class="bg-brand-50/40 align-top">
+									<td class="px-4 py-2">
+										<label for="e-name" class="sr-only">Nombre</label>
+										<input
+											id="e-name"
+											form="edit-participant"
+											required
+											maxlength="150"
+											bind:value={$editForm.name}
+											aria-invalid={!!editErrors.name}
+											class={ui.input}
+										/>
+										{#if editErrors.name}<p class={ui.fieldError}>{editErrors.name}</p>{/if}
+									</td>
+									<td class="px-4 py-2 text-slate-600">{p.email}</td>
+									<td class="px-4 py-2">
+										<label for="e-area" class="sr-only">Área</label>
+										<input
+											id="e-area"
+											form="edit-participant"
+											maxlength="100"
+											placeholder="Área"
+											bind:value={$editForm.area}
+											aria-invalid={!!editErrors.area}
+											class={ui.input}
+										/>
+										{#if editErrors.area}<p class={ui.fieldError}>{editErrors.area}</p>{/if}
+									</td>
+									<td class="px-4 py-2">
+										<label for="e-cargo" class="sr-only">Cargo</label>
+										<input
+											id="e-cargo"
+											form="edit-participant"
+											maxlength="100"
+											placeholder="Cargo"
+											bind:value={$editForm.cargo}
+											aria-invalid={!!editErrors.cargo}
+											class={ui.input}
+										/>
+										{#if editErrors.cargo}<p class={ui.fieldError}>{editErrors.cargo}</p>{/if}
+									</td>
+									<td class="px-4 py-2"><ParticipantStatusBadge status={p.status} /></td>
+									<td class="px-4 py-2"></td>
+									<td class="px-4 py-2 text-right whitespace-nowrap">
+										<form id="edit-participant" method="POST" onsubmit={saveEdit} class="inline">
+											<button class="text-sm font-medium text-brand-600 hover:underline" disabled={$editForm.processing}
+												>Guardar</button
+											>
+										</form>
+										<button
+											type="button"
+											onclick={() => (editingId = null)}
+											class="ml-3 text-sm text-slate-600 hover:underline">Cancelar</button
+										>
+									</td>
+								</tr>
+							{:else}
 							<tr>
 								<td class="px-4 py-2">
 									{p.name}
@@ -316,17 +404,24 @@
 										<span class="text-slate-400">No enviada</span>
 									{/if}
 								</td>
-								<td class="px-4 py-2 text-right">
+								<td class="px-4 py-2 text-right whitespace-nowrap">
+									<button
+										type="button"
+										onclick={() => startEdit(p)}
+										class="text-sm text-brand-600 hover:underline"
+										aria-label="Editar a {p.name}">Editar</button
+									>
 									{#if p.status === 'pendiente'}
 										<button
 											type="button"
 											onclick={() => remove(p)}
-											class="text-sm text-red-700 hover:underline"
+											class="ml-3 text-sm text-red-700 hover:underline"
 											aria-label="Eliminar a {p.name}">Eliminar</button
 										>
 									{/if}
 								</td>
 							</tr>
+							{/if}
 						{/each}
 					</tbody>
 				</table>
