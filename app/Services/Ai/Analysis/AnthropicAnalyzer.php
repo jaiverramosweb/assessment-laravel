@@ -86,7 +86,8 @@ final class AnthropicAnalyzer implements Analyzer
                 ? new AiError('La IA tardó demasiado en responder. Intente de nuevo; si persiste, aumente AI_TIMEOUT_MS.')
                 : new AiError('No se pudo conectar con el servicio de IA. Revise la conexión a internet.');
         } catch (Throwable $e) {
-            Log::error('[ia] error inesperado', ['error' => $e->getMessage()]);
+            // Only the class: the message of an HTTP client error can contain the key (a header value).
+            Log::error('[ia] error inesperado', ['error' => $e::class]);
 
             throw new AiError('Ocurrió un error inesperado al analizar con IA.');
         }

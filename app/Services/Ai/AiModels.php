@@ -42,7 +42,8 @@ final class AiModels
         } catch (ConnectionException) {
             return ['ok' => false, 'error' => "No se pudo conectar con {$label}. Revise la conexión a internet."];
         } catch (Throwable $e) {
-            Log::error('[ia] error al listar modelos', ['proveedor' => $provider, 'error' => $e->getMessage()]);
+            // Only the class: the message of an HTTP client error can contain the key (a header value).
+            Log::error('[ia] error al listar modelos', ['proveedor' => $provider, 'error' => $e::class]);
 
             return ['ok' => false, 'error' => "No se pudo leer la lista de modelos de {$label}."];
         }

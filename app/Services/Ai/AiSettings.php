@@ -27,6 +27,15 @@ final class AiSettings
 
     private const LABELS = ['anthropic' => 'Anthropic', 'openai' => 'OpenAI'];
 
+    /**
+     * An API key is printable ASCII without spaces (10 to 500 chars). Anything else (line breaks,
+     * control characters) would be rejected as an HTTP header, and that error echoes the value.
+     */
+    public static function validKey(string $key): bool
+    {
+        return preg_match('/^[\x21-\x7E]{10,500}$/', $key) === 1;
+    }
+
     /** Short provider name for messages ("Anthropic", "OpenAI"). */
     public static function label(string $provider): string
     {
@@ -143,7 +152,7 @@ final class AiSettings
             $models[$p] = $model;
 
             $key = trim((string) (is_string($input["{$p}ApiKey"] ?? null) ? $input["{$p}ApiKey"] : ''));
-            if ($key !== '' && (mb_strlen($key) < 10 || mb_strlen($key) > 500 || preg_match('/\s/', $key))) {
+            if ($key !== '' && ! self::validKey($key)) {
                 $errors["{$p}ApiKey"] = 'La API key no es válida.';
             }
             $remove = filter_var($input['remove'.ucfirst($p).'Key'] ?? false, FILTER_VALIDATE_BOOLEAN);

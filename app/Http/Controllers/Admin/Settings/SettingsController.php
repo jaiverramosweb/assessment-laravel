@@ -45,6 +45,9 @@ class SettingsController extends Controller
         if ($key === null) {
             return back(303)->with('error', "Escriba o guarde primero la API key de {$label}.");
         }
+        if (! AiSettings::validKey($key)) {
+            return back(303)->with('error', "La API key de {$label} no es válida: revise que no tenga espacios ni saltos de línea.");
+        }
 
         $result = AiModels::fetch($provider, $key);
         if (! $result['ok']) {
