@@ -4,6 +4,7 @@ namespace Tests\Feature\Foundation;
 
 use App\Auth\AdminSessions;
 use App\Auth\Passwords;
+use App\Auth\Tokens;
 use App\Models\AdminSession;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
@@ -53,7 +54,7 @@ class AdminUsersTest extends TestCase
 
         $this->from('/admin/usuarios')->post('/admin/usuarios', [
             'name' => ' David Rojas ', 'email' => ' DAVID@Empresa.co ',
-            'password' => self::NEW_PASSWORD, 'password_confirmation' => self::NEW_PASSWORD,
+            'password' => self::NEW_PASSWORD, 'password_confirmation' => self::NEW_PASSWORD, 'access' => 'full',
         ])->assertStatus(303)->assertRedirect('/admin/usuarios')
             ->assertSessionHas('success', 'Usuario creado: david@empresa.co. Ya puede ingresar con la contraseña que le asignó.');
 
@@ -63,7 +64,8 @@ class AdminUsersTest extends TestCase
         $this->assertTrue(Passwords::verify($david->password_hash, self::NEW_PASSWORD));
         $log = AuditLog::where('action', 'admin.creado')->sole();
         $this->assertSame($me->id, $log->admin_id);
-        $this->assertSame(['email' => 'david@empresa.co', 'origen' => 'panel'], $log->metadata);
+        $this->assertSame(['email' => 'david@empresa.co', 'origen' => 'panel', 'acceso' => 'full', 'permisos' => null], $log->metadata);
+        $this->assertSame('full', $david->access);
 
         $this->post('/admin/logout');
         $this->post('/admin/login', ['email' => 'david@empresa.co', 'password' => self::NEW_PASSWORD])
@@ -192,7 +194,7 @@ class AdminUsersTest extends TestCase
         ])->assertStatus(303)->assertSessionHas('success', 'Contraseña cambiada. Sus otras sesiones se cerraron.');
 
         $this->assertTrue(Passwords::verify($me->fresh()->password_hash, self::NEW_PASSWORD));
-        $this->assertNull(AdminSession::find(\App\Auth\Tokens::hash($other['token'])));
+        $this->assertNull(AdminSession::find(Tokens::hash($other['token'])));
         $this->assertSame(1, AdminSession::where('admin_id', $me->id)->count());
         $this->get('/admin/cuenta')->assertOk();
         $log = AuditLog::where('action', 'admin.password_cambiada')->sole();

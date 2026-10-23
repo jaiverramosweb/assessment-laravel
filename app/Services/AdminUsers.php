@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Auth\AdminAccess;
 use App\Auth\AdminSessions;
 use App\Auth\Passwords;
 use App\Models\AdminUser;
@@ -11,8 +12,8 @@ use App\Support\Clock;
 use Illuminate\Support\Facades\Validator;
 
 /**
- * Admin users managed from the panel ("Usuarios" tab and "Mi cuenta"). Every admin has full
- * access: there are no roles yet. The terminal command (admin:create) keeps working.
+ * Admin users managed from the panel ("Usuarios" tab and "Mi cuenta"). Each admin has full or
+ * limited access (see AdminAccess). The terminal command (admin:create) creates full admins.
  */
 final class AdminUsers
 {
@@ -35,7 +36,7 @@ final class AdminUsers
     ];
 
     /**
-     * @return list<array{id: string, name: string, email: string, lastLoginAt: ?int, createdAt: int, active: bool, isSelf: bool}>
+     * @return list<array{id: string, name: string, email: string, lastLoginAt: ?int, createdAt: int, active: bool, isSelf: bool, access: array}>
      */
     public static function list(string $selfId): array
     {
@@ -47,6 +48,7 @@ final class AdminUsers
             'createdAt' => $u->created_at,
             'active' => $u->isActive(),
             'isSelf' => $u->id === $selfId,
+            'access' => AdminAccess::toArray($u),
         ])->values()->all();
     }
 
@@ -72,6 +74,10 @@ final class AdminUsers
         if (! isset($errors['email']) && AdminUser::where('email', $data['email'])->exists()) {
             $errors['email'] = "Ya existe un usuario con el email {$data['email']}.";
         }
+        $access = AdminAccess::fromInput($input);
+        if (! $access['ok']) {
+            $errors += $access['errors'];
+        }
         if ($errors) {
             return ['ok' => false, 'errors' => $errors];
         }
@@ -80,8 +86,15 @@ final class AdminUsers
             'email' => $data['email'],
             'name' => $data['name'],
             'password_hash' => Passwords::hash($data['password']),
+            'access' => $access['access'],
+            'permissions' => $access['permissions'],
         ]);
-        Audit::log($actorId, 'admin.creado', 'admin', $admin->id, ['email' => $admin->email, 'origen' => 'panel'], $ip);
+        Audit::log($actorId, 'admin.creado', 'admin', $admin->id, [
+            'email' => $admin->email,
+            'origen' => 'panel',
+            'acceso' => $admin->access,
+            'permisos' => $admin->permissions,
+        ], $ip);
 
         return ['ok' => true, 'admin' => $admin];
     }
@@ -101,6 +114,28 @@ final class AdminUsers
         $target->update(['password_hash' => Passwords::hash((string) $input['password'])]);
         AdminSessions::invalidateAll($target->id);
         Audit::log($actorId, 'admin.password_cambiada', 'admin', $target->id, ['origen' => 'panel'], $ip);
+
+        return ['ok' => true];
+    }
+
+    /**
+     * Changes another admin's access level and permissions. It applies from their next request.
+     *
+     * @return array{ok: true}|array{ok: false, errors: array<string, string>}
+     */
+    public static function updateAccess(AdminUser $target, array $input, string $actorId, ?string $ip = null): array
+    {
+        $access = AdminAccess::fromInput($input);
+        if (! $access['ok']) {
+            return $access;
+        }
+
+        $target->update(['access' => $access['access'], 'permissions' => $access['permissions']]);
+        Audit::log($actorId, 'admin.acceso_cambiado', 'admin', $target->id, [
+            'email' => $target->email,
+            'acceso' => $target->access,
+            'permisos' => $target->permissions,
+        ], $ip);
 
         return ['ok' => true];
     }

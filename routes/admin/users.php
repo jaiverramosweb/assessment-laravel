@@ -12,6 +12,10 @@ Route::post('/usuarios', [UserController::class, 'store']);
 Route::post('/usuarios/{userId}/password', [UserController::class, 'password']);
 Route::post('/usuarios/{userId}/desactivar', [UserController::class, 'deactivate']);
 Route::post('/usuarios/{userId}/activar', [UserController::class, 'activate']);
+Route::post('/usuarios/{userId}/acceso', [UserController::class, 'access']);
 
-Route::get('/cuenta', [AccountController::class, 'show']);
-Route::post('/cuenta/password', [AccountController::class, 'password']);
+// Every admin, limited ones included, can change their own password.
+Route::withoutMiddleware('admin.full')->group(function () {
+    Route::get('/cuenta', [AccountController::class, 'show']);
+    Route::post('/cuenta/password', [AccountController::class, 'password']);
+});

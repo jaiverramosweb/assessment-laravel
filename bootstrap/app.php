@@ -3,6 +3,8 @@
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LoadAdminSession;
 use App\Http\Middleware\RequireAdmin;
+use App\Http\Middleware\RequireFullAccess;
+use App\Http\Middleware\RequireReportAccess;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -22,7 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Session tokens are random and opaque; they are stored as SHA-256, never in clear.
         $middleware->encryptCookies(except: ['admin_session', 'participant_session']);
         $middleware->web(append: [LoadAdminSession::class, HandleInertiaRequests::class]);
-        $middleware->alias(['admin' => RequireAdmin::class]);
+        $middleware->alias([
+            'admin' => RequireAdmin::class,
+            'admin.full' => RequireFullAccess::class,
+            'admin.reports' => RequireReportAccess::class,
+        ]);
         // Password confirmation must be compared exactly like the password (which is never trimmed).
         $middleware->trimStrings(except: ['confirm']);
 

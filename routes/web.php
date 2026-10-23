@@ -11,7 +11,8 @@ Route::post('/admin/login', [SessionController::class, 'store']);
 Route::post('/admin/logout', [SessionController::class, 'destroy']);
 
 // Admin panel: every file in routes/admin/ is mounted under /admin and requires a session.
-Route::middleware('admin')->prefix('admin')->group(function () {
+// Default deny: routes require full access unless they opt out of `admin.full` (limited admins).
+Route::middleware(['admin', 'admin.full'])->prefix('admin')->group(function () {
     foreach (glob(__DIR__.'/admin/*.php') as $file) {
         require $file;
     }

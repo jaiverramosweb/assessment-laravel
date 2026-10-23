@@ -16,6 +16,7 @@ final class Audit
         'admin.password_cambiada' => 'Contraseña de administrador cambiada',
         'admin.desactivado' => 'Administrador desactivado',
         'admin.reactivado' => 'Administrador reactivado',
+        'admin.acceso_cambiado' => 'Nivel de acceso de administrador cambiado',
         'assessment.creado' => 'Assessment creado',
         'assessment.editado' => 'Assessment editado',
         'assessment.duplicado' => 'Assessment duplicado',

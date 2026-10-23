@@ -8,7 +8,8 @@ use App\Http\Controllers\Admin\Assessments\GeneralController;
 use App\Http\Controllers\Admin\Assessments\QuestionController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [AssessmentController::class, 'index']);
+// The dashboard is open to limited admins: it only lists the assessments they can see.
+Route::get('/', [AssessmentController::class, 'index'])->withoutMiddleware('admin.full');
 Route::get('/assessments/nuevo', [AssessmentController::class, 'create']);
 Route::post('/assessments/nuevo', [AssessmentController::class, 'store']);
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Assessments;
 
+use App\Auth\AdminAccess;
 use App\Http\Controllers\Controller;
 use App\Services\Assessments\AssessmentForm;
 use App\Services\Assessments\Assessments;
@@ -16,15 +17,19 @@ class AssessmentController extends Controller
     {
         $includeArchived = $request->query('archivados') === '1';
         $q = mb_strtolower(trim((string) $request->query('q', '')));
-        $clients = Assessments::clientOptions();
+        // Limited admins only see the clients (and assessments) whose reports they were granted.
+        $admin = $request->attributes->get('admin');
+        $visible = fn (?string $clientId) => AdminAccess::canViewReportsOf($admin, $clientId);
+        $clients = array_values(array_filter(Assessments::clientOptions(), fn ($c) => $visible($c['id'])));
         $clientParam = (string) $request->query('cliente', '');
         $clientId = in_array($clientParam, array_column($clients, 'id'), true) ? $clientParam : '';
 
-        $all = array_map(fn (array $a) => [
+        $listed = array_filter(Assessments::listForDashboard($includeArchived, $clientId ?: null), fn ($a) => $visible($a['clientId']));
+        $all = array_values(array_map(fn (array $a) => [
             ...$a,
             // Alignment is only computed when there are submissions (avoids useless work).
             'averageAlignment' => $a['submittedCount'] ? Assessments::averageAlignment($a['id']) : null,
-        ], Assessments::listForDashboard($includeArchived, $clientId ?: null));
+        ], $listed));
 
         $assessments = $q === ''
             ? $all

@@ -5,23 +5,29 @@ namespace App\Http\Controllers\Admin\Users;
 use App\Http\Controllers\Controller;
 use App\Models\AdminUser;
 use App\Services\AdminUsers;
+use App\Services\Assessments\Assessments;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-/** "Usuarios" tab: list, create, reset another admin's password, deactivate and reactivate. */
+/** "Usuarios" tab: list, create, change access, reset another admin's password, deactivate and reactivate. */
 class UserController extends Controller
 {
+    /** Access fields of the form (see AdminAccess::fromInput). */
+    private const ACCESS_FIELDS = ['access', 'permissions', 'reportsScope', 'reportsClientIds'];
+
     public function index(Request $request)
     {
         return Inertia::render('Admin/Users/Index', [
             'users' => AdminUsers::list($request->attributes->get('admin')->id),
+            // For the "Ver reportes" client selector.
+            'clients' => Assessments::clientOptions(),
         ]);
     }
 
     public function store(Request $request)
     {
         $result = AdminUsers::create(
-            $request->only(['name', 'email', 'password', 'password_confirmation']),
+            $request->only(['name', 'email', 'password', 'password_confirmation', ...self::ACCESS_FIELDS]),
             $request->attributes->get('admin')->id,
             $request->ip(),
         );
@@ -30,6 +36,21 @@ class UserController extends Controller
         }
 
         return back(303)->with('success', "Usuario creado: {$result['admin']->email}. Ya puede ingresar con la contraseña que le asignó.");
+    }
+
+    public function access(Request $request, string $userId)
+    {
+        [$target, $error] = $this->other($request, $userId, 'No puede cambiar su propio nivel de acceso.');
+        if ($error) {
+            return back(303)->with('error', $error);
+        }
+
+        $result = AdminUsers::updateAccess($target, $request->only(self::ACCESS_FIELDS), $request->attributes->get('admin')->id, $request->ip());
+        if (! $result['ok']) {
+            return back(303)->withErrors($result['errors']);
+        }
+
+        return back(303)->with('success', "Acceso de {$target->email} actualizado.");
     }
 
     public function password(Request $request, string $userId)
