@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page, router } from '@inertiajs/svelte';
+	import { Link, page, router } from '@inertiajs/svelte';
 	import { FREQUENCY_LABELS, type StoredAnalysis } from '@/lib/ai-analysis';
 	import { formatDateTime } from '@/lib/format';
 	import { ui } from '@/lib/ui';
@@ -98,7 +98,8 @@
 		<p class="mt-2 text-sm text-slate-600">Todavía no hay un análisis con IA para esta pregunta.</p>
 	{:else if !configured && canRun}
 		<p class="mt-2 text-sm text-slate-600">
-			Para habilitarlo, configure <code>ANTHROPIC_API_KEY</code> en el archivo <code>.env</code> del servidor.
+			Para habilitarlo, elija el proveedor, el modelo y la API key en
+			<Link href="/admin/configuracion" class="text-brand-600 underline">Configuración</Link>.
 		</p>
 	{/if}
 

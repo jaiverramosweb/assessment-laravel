@@ -9,7 +9,7 @@ equipo de desarrollo y se suben ya listos.
 
 **Stack:** Laravel 12 · PHP 8.3 · Inertia 2 + Svelte 5 · Tailwind CSS 4 · MySQL/MariaDB
 (producción) o SQLite (desarrollo) ·
-PhpSpreadsheet · Dompdf · API de Anthropic.
+PhpSpreadsheet · Dompdf · API de Anthropic u OpenAI.
 
 ## Qué hace
 
@@ -139,7 +139,7 @@ DB_PASSWORD=           # la contraseña del usuario de la base
 QUEUE_CONNECTION=database
 DB_QUEUE_RETRY_AFTER=1200
 ACCESS_PASSWORD_KEY=   # la clave que imprimió el último comando
-ANTHROPIC_API_KEY=     # si va a usar el análisis con IA
+ANTHROPIC_API_KEY=     # opcional: la IA se configura en el panel (Configuración)
 MAIL_MAILER=smtp       # y MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS
 ```
 
@@ -164,6 +164,14 @@ permisos marcados. Hoy existe **Ver reportes** (Reportes, Mediciones e Informe g
 todos los clientes o solo para clientes específicos. Un usuario limitado no puede crear, editar ni borrar
 nada, ni usar la IA; cualquier otra página del panel le responde 403. El administrador de la terminal y los
 existentes antes de esta función tienen acceso completo.
+
+La IA del análisis de respuestas abiertas se elige en **Configuración** (solo acceso completo):
+proveedor (**Anthropic** u **OpenAI**), modelo de cada uno y su API key. **Actualizar lista de modelos**
+consulta al proveedor los modelos disponibles en esa cuenta. Las API keys se guardan cifradas en la base
+con la misma clave que las contraseñas de acceso (`ACCESS_PASSWORD_KEY` o `database/clave-cifrado.key`):
+si esa clave se pierde, hay que volver a escribir las API keys. Mientras no se guarde nada en el panel,
+se usan `ANTHROPIC_API_KEY` y `ANTHROPIC_MODEL` del `.env` (también `AI_PROVIDER`, `OPENAI_API_KEY`,
+`OPENAI_MODEL`).
 
 ### 5. Cron (análisis con IA, mantenimiento y respaldo)
 

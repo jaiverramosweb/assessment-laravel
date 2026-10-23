@@ -27,6 +27,12 @@ final class AiSettings
 
     private const LABELS = ['anthropic' => 'Anthropic', 'openai' => 'OpenAI'];
 
+    /** Short provider name for messages ("Anthropic", "OpenAI"). */
+    public static function label(string $provider): string
+    {
+        return self::LABELS[$provider] ?? $provider;
+    }
+
     public static function provider(): string
     {
         $saved = self::get('ai.provider');

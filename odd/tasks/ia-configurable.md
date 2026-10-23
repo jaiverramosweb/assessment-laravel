@@ -17,7 +17,7 @@ Branch: `feat/ia-configurable` · Delivery: `ask-on-risk` · Runners: `php artis
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
 | T1 | S1,S3,S5,S6 | `app_settings` migration, AiSettings (DB + .env fallback, encrypted keys), OpenAiAnalyzer, analyzer factory wired into job/controller/props/timeout, tests | inline (no writer reason); high risk (credentials, migration) → independent verifier | done (RED 13 failed; GREEN 343 passed) | see git log |
-| T2 | S2,S3,S4 | Configuración routes/controller/page, model listing (Anthropic + OpenAI), sidebar link, tests, README | inline (no writer reason) | pending | |
+| T2 | S2,S3,S4 | Configuración routes/controller/page, model listing (Anthropic + OpenAI), sidebar link, tests, README | inline (no writer reason) | done (RED 7 failed; GREEN 350 passed; svelte-check 0/0; build ok; browser check pending) | see git log |
 
 ## Log
 

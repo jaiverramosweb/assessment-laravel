@@ -65,7 +65,7 @@ class AdminAccessProbeTest extends TestCase
                 continue;
             }
             $id = str_starts_with($uri, 'admin/clientes/') ? $this->acme->id : $this->acmeA->id;
-            $url = '/'.strtr($uri, ['{id}' => $id, '{userId}' => $other->id, '{participantId}' => '00000000-0000-0000-0000-000000000000']);
+            $url = '/'.strtr($uri, ['{id}' => $id, '{userId}' => $other->id, '{participantId}' => '00000000-0000-0000-0000-000000000000', '{provider}' => 'openai']);
             foreach (array_diff($route->methods(), ['HEAD']) as $method) {
                 if ($method === 'GET' && $uri === 'admin/clientes/{id}/logo') {
                     continue; // Opened to report viewers (scope checked below).
