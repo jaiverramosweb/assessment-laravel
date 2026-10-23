@@ -290,6 +290,7 @@ class AdminAccessTest extends TestCase
             'GET|HEAD admin/clientes/{id}/informe',
             'GET|HEAD admin/clientes/{id}/informe/excel',
             'GET|HEAD admin/clientes/{id}/informe/pdf',
+            'GET|HEAD admin/clientes/{id}/logo',
             'GET|HEAD admin/cuenta',
             'POST admin/cuenta/password',
         ], $open);

@@ -12,7 +12,10 @@ Route::get('/clientes/{id}', [ClientController::class, 'show']);
 Route::post('/clientes/{id}/nombre', [ClientController::class, 'rename']);
 Route::delete('/clientes/{id}', [ClientController::class, 'destroy']);
 
-Route::get('/clientes/{id}/logo', [ClientBrandController::class, 'showLogo']);
+// The logo shows on report screens too: limited admins can load it for the clients in their scope.
+Route::get('/clientes/{id}/logo', [ClientBrandController::class, 'showLogo'])
+    ->withoutMiddleware('admin.full')
+    ->middleware('admin.reports:client');
 Route::post('/clientes/{id}/logo', [ClientBrandController::class, 'uploadLogo']);
 Route::delete('/clientes/{id}/logo', [ClientBrandController::class, 'removeLogo']);
 Route::post('/clientes/{id}/colores', [ClientBrandController::class, 'saveColors']);

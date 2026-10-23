@@ -2,6 +2,7 @@
 
 namespace App\Services\Shared;
 
+use App\Auth\AdminAccess;
 use App\Models\Assessment;
 use App\Models\Participant;
 use App\Models\Question;
@@ -36,17 +37,25 @@ final class AssessmentContext
         return Submission::where('assessment_id', $assessmentId)->exists();
     }
 
-    /** Series members in order. When it is not in a series: only itself. */
+    /**
+     * Series members in order. When it is not in a series: only itself. A series can span
+     * clients (the client of a member can be changed), so a limited admin of the current request
+     * only gets the members whose reports they may see; `$a` itself was already checked.
+     */
     public static function seriesMembers(Assessment $a): Collection
     {
         if (! $a->series_id) {
             return collect([$a]);
         }
 
+        $admin = request()->attributes->get('admin');
+
         return Assessment::where('series_id', $a->series_id)
             ->orderBy('series_order')
             ->orderBy('created_at')
-            ->get();
+            ->get()
+            ->filter(fn (Assessment $m) => ! $admin || $m->id === $a->id || AdminAccess::canViewReportsOf($admin, $m->client_id))
+            ->values();
     }
 
     /** Are the questions shared with another measurement? (then they cannot be modified) */
