@@ -4,11 +4,14 @@ namespace Tests\Feature\Ai;
 
 use App\Jobs\AnalyzeOpenAnswers;
 use App\Models\AiAnalysis;
+use App\Models\Answer;
 use App\Models\AuditLog;
 use App\Services\Ai\AiReportProps;
+use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStore;
 use App\Services\Ai\Analysis\AiJobState;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -28,7 +31,7 @@ class AiRoutesTest extends TestCase
     /** Replaces every previous stub (Http::fake() keeps the first matching one). */
     private function stubApi(array $stubs): void
     {
-        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::swap(new Factory);
         Http::fake($stubs);
     }
 
@@ -76,7 +79,7 @@ class AiRoutesTest extends TestCase
         $this->actingAsAdmin($this->admin);
         $this->post($this->route, ['questionId' => $this->openIds[0]])
             ->assertRedirect()
-            ->assertSessionHas('aiError', ['target' => $this->openIds[0], 'message' => 'Configure ANTHROPIC_API_KEY en .env para usar la IA.']);
+            ->assertSessionHas('aiError', ['target' => $this->openIds[0], 'message' => AiSettings::NOT_CONFIGURED]);
         Queue::assertNothingPushed();
         $this->assertFalse($this->props()['ai']['configured']);
     }
@@ -90,7 +93,7 @@ class AiRoutesTest extends TestCase
         $this->post($this->route, ['questionId' => ['x']])
             ->assertSessionHas('aiError', ['target' => 'global', 'message' => 'La pregunta no existe o no es de respuesta abierta.']);
 
-        \App\Models\Answer::where('question_id', $this->openIds[1])->delete();
+        Answer::where('question_id', $this->openIds[1])->delete();
         $this->post($this->route, ['questionId' => $this->openIds[1]])
             ->assertSessionHas('aiError', ['target' => $this->openIds[1], 'message' => 'Esta pregunta todavía no tiene respuestas entregadas.']);
         Queue::assertNothingPushed();
@@ -150,6 +153,29 @@ class AiRoutesTest extends TestCase
         $this->assertSame([], $props['aiPending']);
         $this->assertSame($row->id, $props['analyses']->{$this->openIds[0]}['id']);
         $this->assertSame([], (array) $props['aiErrors']);
+    }
+
+    public function test_the_job_uses_openai_when_it_is_the_configured_provider(): void
+    {
+        AiSettings::save([
+            'provider' => 'openai', 'openaiModel' => 'gpt-prueba', 'openaiApiKey' => 'sk-openai-prueba-123',
+        ], $this->admin->id);
+        $this->stubApi(['https://api.openai.com/v1/responses' => Http::response([
+            'status' => 'completed',
+            'output' => [['type' => 'message', 'role' => 'assistant', 'content' => [
+                ['type' => 'output_text', 'text' => json_encode(self::aiResult())],
+            ]]],
+        ])]);
+        $this->actingAsAdmin($this->admin);
+
+        $this->post($this->route, ['questionId' => $this->openIds[0]])->assertRedirect()->assertSessionMissing('aiError');
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => $r->url() === 'https://api.openai.com/v1/responses'
+            && $r->header('Authorization') === ['Bearer sk-openai-prueba-123']
+            && ! str_contains($r->data()['input'][1]['content'], 'Carolina'));
+        $this->assertSame('gpt-prueba', AiAnalysis::sole()->model);
+        $this->assertSame(['configured' => true, 'model' => 'gpt-prueba'], $this->props()['ai']);
     }
 
     public function test_unchanged_answers_answer_from_the_saved_analysis_without_queueing(): void

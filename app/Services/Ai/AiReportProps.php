@@ -10,7 +10,7 @@ use Throwable;
 /**
  * AI props the reports page receives (merged into its Inertia props).
  * Contract used by the reports page and `AiAnalysisPanel.svelte`:
- * - `ai.configured`: an API key is set (`ai.model`: the configured model).
+ * - `ai.configured`: the active provider has an API key and a model (`ai.model`: that model).
  * - `analyses`: AiStore::latest() keyed by question id or "global".
  * - `aiPending`: keys (question id or "global") with a queued/running analysis.
  * - `aiErrors`: key => Spanish message of the last failed analysis (job) or rejected request.
@@ -33,8 +33,8 @@ final class AiReportProps
 
         return [
             'ai' => [
-                'configured' => (bool) config('assessments.anthropic.api_key'),
-                'model' => (string) config('assessments.anthropic.model'),
+                'configured' => AiSettings::configured(),
+                'model' => AiSettings::model(),
             ],
             'analyses' => (object) AiStore::latest($assessment->id),
             'aiPending' => AiJobState::pending($assessment->id, $keys),

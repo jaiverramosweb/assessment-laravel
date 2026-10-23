@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Ai;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\AnalyzeOpenAnswers;
+use App\Services\Ai\AiSettings;
 use App\Services\Ai\Analysis\AiAnalysisService;
 use App\Services\Ai\Analysis\AiError;
 use App\Services\Ai\Analysis\AiJobState;
@@ -30,12 +31,12 @@ class AiAnalysisController extends Controller
         if ($raw !== null && $raw !== '' && $questionId === null) {
             return $fail('La pregunta no existe o no es de respuesta abierta.');
         }
-        if (! config('assessments.anthropic.api_key')) {
-            return $fail('Configure ANTHROPIC_API_KEY en .env para usar la IA.');
+        if (! AiSettings::configured()) {
+            return $fail(AiSettings::NOT_CONFIGURED);
         }
 
         try {
-            $check = AiAnalysisService::check($a->id, $questionId, (string) config('assessments.anthropic.model'));
+            $check = AiAnalysisService::check($a->id, $questionId, AiSettings::model());
         } catch (AiError $e) {
             return $fail($e->getMessage());
         }

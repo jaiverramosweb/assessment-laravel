@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai\Analysis;
 
+use App\Services\Ai\AiSettings;
 use App\Support\Clock;
 use Illuminate\Support\Facades\Cache;
 
@@ -83,7 +84,7 @@ final class AiJobState
      */
     public static function jobTimeout(): int
     {
-        $callSeconds = (int) ceil(max(1000, (int) config('assessments.anthropic.timeout_ms')) / 1000);
+        $callSeconds = (int) ceil(max(1000, AiSettings::timeoutMs()) / 1000);
 
         return $callSeconds * 6 + 60;
     }

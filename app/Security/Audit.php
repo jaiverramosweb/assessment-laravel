@@ -36,6 +36,7 @@ final class Audit
         'invitaciones.enviadas' => 'Invitaciones enviadas',
         'reporte.exportado' => 'Reporte exportado',
         'ia.analisis' => 'Análisis con IA ejecutado',
+        'ia.configuracion_cambiada' => 'Configuración de IA cambiada',
     ];
 
     public static function log(

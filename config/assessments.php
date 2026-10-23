@@ -15,9 +15,19 @@ return [
     // Session cookies are Secure everywhere except the local environment.
     'secure_cookies' => (bool) env('SECURE_COOKIES', env('APP_ENV', 'production') !== 'local'),
 
+    // AI analysis. These are defaults: the provider, models and API keys saved from the admin
+    // panel ("Configuración") take precedence (App\Services\Ai\AiSettings).
+    'ai_provider' => env('AI_PROVIDER', 'anthropic'),
+
     'anthropic' => [
         'api_key' => env('ANTHROPIC_API_KEY'),
         'model' => env('ANTHROPIC_MODEL', 'claude-opus-5-5'),
+        // Per-call timeout, shared by every provider.
         'timeout_ms' => (int) env('AI_TIMEOUT_MS', 180000),
+    ],
+
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL'),
     ],
 ];

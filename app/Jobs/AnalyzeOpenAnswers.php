@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Services\Ai\AiSettings;
 use App\Services\Ai\Analysis\AiAnalysisService;
 use App\Services\Ai\Analysis\AiError;
 use App\Services\Ai\Analysis\AiJobState;
-use App\Services\Ai\Analysis\AnthropicAnalyzer;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -53,8 +53,7 @@ class AnalyzeOpenAnswers implements ShouldBeUnique, ShouldQueue
     public function handle(): void
     {
         try {
-            $analyzer = AnthropicAnalyzer::fromConfig()
-                ?? throw new AiError('Configure ANTHROPIC_API_KEY en .env para usar la IA.');
+            $analyzer = AiSettings::analyzer() ?? throw new AiError(AiSettings::NOT_CONFIGURED);
             if ($this->questionId === null) {
                 AiAnalysisService::analyzeGlobal($analyzer, $this->assessmentId, $this->adminId, $this->force, $this->ip);
             } else {
