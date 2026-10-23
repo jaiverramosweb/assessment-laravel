@@ -2,6 +2,7 @@
 	import { Link, page, router } from '@inertiajs/svelte';
 	import AdminLayout from '@/Layouts/AdminLayout.svelte';
 	import StatusBadge from '@/components/StatusBadge.svelte';
+	import type { SharedProps } from '@/types';
 	import type { AssessmentStatus } from '@/lib/constants';
 	import { formatPercent, formatShortDate } from '@/lib/format';
 	import { ui } from '@/lib/ui';
@@ -51,6 +52,8 @@
 		};
 	} = $props();
 
+	// Report-only admins: no creation or management, every card leads to its report.
+	const full = $derived(($page.props as unknown as SharedProps).admin?.access.full ?? false);
 	const deleted = $derived(new URL($page.url, 'http://x').searchParams.get('eliminado') === '1');
 
 	const tiles = $derived([
@@ -91,19 +94,21 @@
 				<p class={ui.eyebrow}>Panel de administración</p>
 				<h1 class={ui.pageTitle}>Assessments</h1>
 			</div>
-			<Link href="/admin/assessments/nuevo" class={ui.btnPrimary}>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.4"
-					stroke-linecap="round"
-					aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg
-				>
-				Nuevo assessment
-			</Link>
+			{#if full}
+				<Link href="/admin/assessments/nuevo" class={ui.btnPrimary}>
+					<svg
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.4"
+						stroke-linecap="round"
+						aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg
+					>
+					Nuevo assessment
+				</Link>
+			{/if}
 		</div>
 
 		{#if deleted}
@@ -192,7 +197,7 @@
 		{:else}
 			<ul class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 				{#each assessments as a (a.id)}
-					{@const generalHref = `/admin/assessments/${a.id}`}
+					{@const generalHref = full ? `/admin/assessments/${a.id}` : `/admin/assessments/${a.id}/reportes`}
 					{@const rate = a.participantCount ? a.submittedCount / a.participantCount : 0}
 					<li
 						class="flex flex-col gap-4 rounded-2xl border bg-white p-6 {a.status === 'borrador'
@@ -214,7 +219,11 @@
 											>{a.title}</Link
 										>
 									</h2>
-									{#if a.clientName}<p class="text-sm text-slate-600">{a.clientName}</p>{/if}
+									{#if a.clientName && a.clientId && !full}
+										<Link href="/admin/clientes/{a.clientId}/informe" class="text-sm text-slate-600 hover:underline"
+											>{a.clientName} · Informe general</Link
+										>
+									{:else if a.clientName}<p class="text-sm text-slate-600">{a.clientName}</p>{/if}
 								</div>
 							</div>
 							<StatusBadge status={a.status} />
@@ -295,7 +304,9 @@
 						{/if}
 
 						<div class="mt-auto flex gap-2 border-t border-slate-100 pt-4">
-							{#if a.status === 'borrador'}
+							{#if !full}
+								<Link href={generalHref} class="{ui.btnDark} flex-1">Ver reporte</Link>
+							{:else if a.status === 'borrador'}
 								<Link href={generalHref} class="{ui.btnDark} flex-1">Continuar configuración</Link>
 							{:else}
 								<Link href="{generalHref}/reportes" class="{ui.btnDark} flex-1">Ver reporte</Link>

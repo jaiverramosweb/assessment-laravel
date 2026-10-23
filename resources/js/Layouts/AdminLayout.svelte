@@ -9,17 +9,20 @@
 	const shared = $derived($page.props as unknown as SharedProps);
 	const pathname = $derived(new URL($page.url, 'http://x').pathname);
 
-	const links = [
+	const allLinks = [
 		{
 			href: '/admin',
 			label: 'Assessments',
 			icon: 'grid',
-			exclude: ['/admin/auditoria', '/admin/clientes', '/admin/usuarios', '/admin/cuenta']
+			exclude: ['/admin/auditoria', '/admin/clientes', '/admin/usuarios', '/admin/cuenta'],
+			limited: true
 		},
-		{ href: '/admin/clientes', label: 'Clientes', icon: 'users', exclude: [] },
-		{ href: '/admin/usuarios', label: 'Usuarios', icon: 'user', exclude: [] },
-		{ href: '/admin/auditoria', label: 'Auditoría', icon: 'clock', exclude: [] }
+		{ href: '/admin/clientes', label: 'Clientes', icon: 'users', exclude: [], limited: false },
+		{ href: '/admin/usuarios', label: 'Usuarios', icon: 'user', exclude: [], limited: false },
+		{ href: '/admin/auditoria', label: 'Auditoría', icon: 'clock', exclude: [], limited: false }
 	];
+	// Limited admins (report-only) do not see the sections the server would refuse anyway.
+	const links = $derived(shared.admin?.access.full ? allLinks : allLinks.filter((l) => l.limited));
 
 	function isActive(href: string, exclude: string[]) {
 		if (exclude.some((e) => pathname.startsWith(e))) return false;

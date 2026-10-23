@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Link, router } from '@inertiajs/svelte';
+	import { Link, page, router } from '@inertiajs/svelte';
+	import type { SharedProps } from '@/types';
 	import AssessmentLayout, { type AssessmentContext } from '@/Layouts/AssessmentLayout.svelte';
 	import BarList, { type BarItem } from '@/components/BarList.svelte';
 	import AiAnalysisPanel from '@/components/AiAnalysisPanel.svelte';
@@ -66,6 +67,8 @@
 	let { context, report: r, areas, cargos, query, ai, analyses, aiPending }: Props = $props();
 
 	const a = $derived(context.assessment);
+	// Report-only admins can read the AI analyses but not run them (the server refuses it).
+	const canRunAi = $derived(($page.props as unknown as SharedProps).admin?.access.full ?? false);
 	const s = $derived(r.summary);
 	const base = $derived(`/admin/assessments/${context.assessment.id}/reportes`);
 
@@ -283,6 +286,7 @@
 							assessmentId={a.id}
 							analysis={analyses.global}
 							configured={ai.configured}
+							canRun={canRunAi}
 							timezone={a.timezone}
 							pending={aiPending.includes('global')}
 						/>
@@ -326,6 +330,7 @@
 							analysis={analyses[q.id]}
 							questionId={q.id}
 							configured={ai.configured}
+							canRun={canRunAi}
 							timezone={a.timezone}
 							stale={!hasFilters && !!analyses[q.id] && analyses[q.id].responseCount !== q.responses.length}
 							pending={aiPending.includes(q.id)}

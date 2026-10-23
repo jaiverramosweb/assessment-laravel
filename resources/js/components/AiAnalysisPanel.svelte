@@ -15,7 +15,8 @@
 		configured,
 		timezone,
 		stale = false,
-		pending = false
+		pending = false,
+		canRun = true
 	}: {
 		assessmentId: string;
 		analysis: StoredAnalysis | undefined;
@@ -24,6 +25,8 @@
 		timezone: string;
 		stale?: boolean;
 		pending?: boolean;
+		/** False for report-only admins: they read the analysis but cannot run it. */
+		canRun?: boolean;
 	} = $props();
 
 	const POLL_MS = 4000;
@@ -68,7 +71,7 @@
 <div class="rounded-md bg-slate-50 p-4 ring-1 ring-slate-200">
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<p class="text-sm font-semibold">Análisis con IA</p>
-		{#if configured}
+		{#if configured && canRun}
 			<button type="button" class={analysis ? ui.btnSecondary : ui.btnPrimary} disabled={working} onclick={analyze}>
 				{#if working}
 					<span
@@ -91,7 +94,9 @@
 	{#if error && !working}
 		<p class="mt-3 {ui.alertError}" role="alert">{error}</p>
 	{/if}
-	{#if !configured}
+	{#if !canRun && !analysis}
+		<p class="mt-2 text-sm text-slate-600">Todavía no hay un análisis con IA para esta pregunta.</p>
+	{:else if !configured && canRun}
 		<p class="mt-2 text-sm text-slate-600">
 			Para habilitarlo, configure <code>ANTHROPIC_API_KEY</code> en el archivo <code>.env</code> del servidor.
 		</p>

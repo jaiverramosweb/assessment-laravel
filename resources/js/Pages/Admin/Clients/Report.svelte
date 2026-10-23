@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Link } from '@inertiajs/svelte';
+	import { Link, page } from '@inertiajs/svelte';
+	import type { SharedProps } from '@/types';
 	import AdminLayout from '@/Layouts/AdminLayout.svelte';
 	import BarList from '@/components/BarList.svelte';
 	import StatusBadge from '@/components/StatusBadge.svelte';
@@ -46,6 +47,9 @@
 		client: c,
 		report: r
 	}: { client: { id: string; name: string; logoUrl: string | null }; report: ClientReport } = $props();
+
+	// Report-only admins cannot open the Clientes section: their breadcrumb goes to the dashboard.
+	const full = $derived(($page.props as unknown as SharedProps).admin?.access.full ?? false);
 
 	const s = $derived(r.summary);
 
@@ -96,8 +100,12 @@
 		<div class="flex flex-wrap items-end justify-between gap-4">
 			<div class="flex flex-col gap-1.5">
 				<nav class="text-sm text-slate-500">
-					<Link href="/admin/clientes" class="hover:underline">Clientes</Link> /
-					<Link href="/admin/clientes/{c.id}" class="hover:underline">{c.name}</Link> / Informe general
+					{#if full}
+						<Link href="/admin/clientes" class="hover:underline">Clientes</Link> /
+						<Link href="/admin/clientes/{c.id}" class="hover:underline">{c.name}</Link> / Informe general
+					{:else}
+						<Link href="/admin" class="hover:underline">Assessments</Link> / {c.name} / Informe general
+					{/if}
 				</nav>
 				<div class="flex items-center gap-3">
 					{#if c.logoUrl}

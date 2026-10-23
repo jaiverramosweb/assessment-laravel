@@ -15,7 +15,7 @@ PhpSpreadsheet · Dompdf · API de Anthropic.
 
 | Para quién        | Funciones                                                                                                                                                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Administrador** | Assessments (crear, editar, duplicar, archivar, eliminar) · preguntas (editor, Excel/CSV y Word) · contraseña de acceso · participantes (editar nombre, área y cargo desde la tabla) · invitaciones · reportes · Excel y PDF · clientes · mediciones · IA · usuarios del panel y "Mi cuenta" · auditoría |
+| **Administrador** | Assessments (crear, editar, duplicar, archivar, eliminar) · preguntas (editor, Excel/CSV y Word) · contraseña de acceso · participantes (editar nombre, área y cargo desde la tabla) · invitaciones · reportes · Excel y PDF · clientes · mediciones · IA · usuarios del panel (acceso completo o solo reportes por cliente) y "Mi cuenta" · auditoría |
 | **Participante**  | Abre el enlace, escribe la contraseña de acceso y su correo, responde con autoguardado (puede salir y volver) y entrega una sola vez                                                                                          |
 
 El detalle de cada función es el mismo de la plataforma original.
@@ -158,8 +158,12 @@ $PHP artisan config:cache && $PHP artisan route:cache && $PHP artisan view:cache
 ```
 
 El primer administrador se crea en la terminal. Los demás se crean desde la pestaña **Usuarios** del
-panel (también se les cambia la contraseña o se desactivan), y cada uno cambia la suya en **Mi cuenta**.
-Todos tienen acceso completo.
+panel (también se les cambia la contraseña o el acceso, o se desactivan), y cada uno cambia la suya en
+**Mi cuenta**. Cada usuario tiene **acceso completo** o **acceso limitado**: el limitado solo recibe los
+permisos marcados. Hoy existe **Ver reportes** (Reportes, Mediciones e Informe general, con descargas), para
+todos los clientes o solo para clientes específicos. Un usuario limitado no puede crear, editar ni borrar
+nada, ni usar la IA; cualquier otra página del panel le responde 403. El administrador de la terminal y los
+existentes antes de esta función tienen acceso completo.
 
 ### 5. Cron (análisis con IA, mantenimiento y respaldo)
 

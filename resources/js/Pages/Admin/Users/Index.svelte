@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { Link, router, useForm } from '@inertiajs/svelte';
 	import AdminLayout from '@/Layouts/AdminLayout.svelte';
+	import AccessFields from '@/components/AccessFields.svelte';
 	import { formatDateTime } from '@/lib/format';
 	import { ui } from '@/lib/ui';
+	import type { AdminAccessInfo } from '@/types';
 
 	type UserRow = {
 		id: string;
@@ -12,12 +14,55 @@
 		createdAt: number;
 		active: boolean;
 		isSelf: boolean;
+		access: AdminAccessInfo;
 	};
 
-	let { users }: { users: UserRow[] } = $props();
+	let { users, clients }: { users: UserRow[]; clients: { id: string; name: string }[] } = $props();
 
-	const createForm = useForm({ name: '', email: '', password: '', password_confirmation: '' });
+	// New users start with the least access: limited to the reports of the clients to be chosen.
+	const accessDefaults = () => ({
+		access: 'limited' as 'full' | 'limited',
+		permissions: ['reports'],
+		reportsScope: 'clients' as 'all' | 'clients',
+		reportsClientIds: [] as string[]
+	});
+
+	const createForm = useForm({ name: '', email: '', password: '', password_confirmation: '', ...accessDefaults() });
 	const createErrors = $derived($createForm.errors as Record<string, string | undefined>);
+
+	const clientNames = $derived(new Map(clients.map((c) => [c.id, c.name])));
+
+	function accessSummary(access: AdminAccessInfo): string {
+		if (access.full) return 'Acceso completo';
+		if (!access.reports) return 'Sin permisos';
+		if (access.reports.all) return 'Ver reportes · Todos los clientes';
+		const names = access.reports.clientIds.map((id) => clientNames.get(id)).filter(Boolean);
+		return `Ver reportes · ${names.length ? names.join(', ') : 'ningún cliente'}`;
+	}
+
+	// Access of another user (one row at a time).
+	let accessId: string | null = $state(null);
+	const accessForm = useForm(accessDefaults());
+	const accessErrors = $derived($accessForm.errors as Record<string, string | undefined>);
+
+	function startAccess(u: UserRow) {
+		resetId = null;
+		$accessForm.clearErrors();
+		$accessForm.access = u.access.full ? 'full' : 'limited';
+		$accessForm.permissions = u.access.full || u.access.reports ? ['reports'] : [];
+		$accessForm.reportsScope = u.access.reports?.all ? 'all' : 'clients';
+		$accessForm.reportsClientIds = u.access.reports && !u.access.reports.all ? [...u.access.reports.clientIds] : [];
+		accessId = u.id;
+	}
+
+	function saveAccess(event: SubmitEvent) {
+		event.preventDefault();
+		$accessForm.post(`/admin/usuarios/${accessId}/acceso`, {
+			preserveScroll: true,
+			preserveState: true,
+			onSuccess: () => (accessId = null)
+		});
+	}
 
 	function create(event: SubmitEvent) {
 		event.preventDefault();
@@ -35,6 +80,7 @@
 	const resetErrors = $derived($resetForm.errors as Record<string, string | undefined>);
 
 	function startReset(u: UserRow) {
+		accessId = null;
 		$resetForm.reset();
 		$resetForm.clearErrors();
 		resetId = u.id;
@@ -69,8 +115,9 @@
 			<p class={ui.eyebrow}>Panel de administración</p>
 			<h1 class={ui.pageTitle}>Usuarios</h1>
 			<p class="max-w-2xl text-sm text-slate-600">
-				Personas que pueden ingresar al panel. Todas tienen acceso completo. Para cambiar su propia
-				contraseña use <Link href="/admin/cuenta" class="text-brand-600 underline">Mi cuenta</Link>.
+				Personas que pueden ingresar al panel. Cada una tiene acceso completo, o acceso limitado a lo que usted le
+				permita (por ejemplo, solo ver los reportes de ciertos clientes). Para cambiar su propia contraseña use
+				<Link href="/admin/cuenta" class="text-brand-600 underline">Mi cuenta</Link>.
 			</p>
 		</div>
 
@@ -131,6 +178,17 @@
 					/>
 				</div>
 				<div class="sm:col-span-2">
+					<AccessFields
+						idPrefix="u"
+						{clients}
+						errors={createErrors}
+						bind:access={$createForm.access}
+						bind:permissions={$createForm.permissions}
+						bind:reportsScope={$createForm.reportsScope}
+						bind:reportsClientIds={$createForm.reportsClientIds}
+					/>
+				</div>
+				<div class="sm:col-span-2">
 					<button class={ui.btnPrimary} disabled={$createForm.processing}>Crear usuario</button>
 				</div>
 			</form>
@@ -143,6 +201,7 @@
 					<tr>
 						<th scope="col" class="px-4 py-2 font-medium">Nombre</th>
 						<th scope="col" class="px-4 py-2 font-medium">Email</th>
+						<th scope="col" class="px-4 py-2 font-medium">Acceso</th>
 						<th scope="col" class="px-4 py-2 font-medium">Último ingreso</th>
 						<th scope="col" class="px-4 py-2 font-medium">Estado</th>
 						<th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
@@ -156,6 +215,7 @@
 								{#if u.isSelf}<span class="ml-1 text-xs text-slate-500">(usted)</span>{/if}
 							</td>
 							<td class="px-4 py-2 text-slate-600">{u.email}</td>
+							<td class="px-4 py-2 text-slate-600">{accessSummary(u.access)}</td>
 							<td class="px-4 py-2 whitespace-nowrap text-slate-600">
 								{#if u.lastLoginAt}{formatDateTime(u.lastLoginAt)}{:else}<span class="text-slate-400">Nunca</span>{/if}
 							</td>
@@ -172,6 +232,12 @@
 							</td>
 							<td class="px-4 py-2 text-right whitespace-nowrap">
 								{#if !u.isSelf}
+									<button
+										type="button"
+										onclick={() => startAccess(u)}
+										class="mr-3 text-sm text-brand-600 hover:underline"
+										aria-label="Cambiar acceso de {u.name}">Cambiar acceso</button
+									>
 									<button
 										type="button"
 										onclick={() => startReset(u)}
@@ -196,9 +262,32 @@
 								{/if}
 							</td>
 						</tr>
+						{#if accessId === u.id}
+							<tr class="bg-brand-50/40">
+								<td colspan="6" class="px-4 py-3">
+									<form method="POST" onsubmit={saveAccess} class="flex max-w-xl flex-col gap-3">
+										<p class="text-sm font-medium">Acceso de {u.email}</p>
+										<AccessFields
+											idPrefix="a-{u.id}"
+											{clients}
+											errors={accessErrors}
+											bind:access={$accessForm.access}
+											bind:permissions={$accessForm.permissions}
+											bind:reportsScope={$accessForm.reportsScope}
+											bind:reportsClientIds={$accessForm.reportsClientIds}
+										/>
+										<div class="flex gap-3">
+											<button class={ui.btnPrimary} disabled={$accessForm.processing}>Guardar</button>
+											<button type="button" onclick={() => (accessId = null)} class={ui.btnSecondary}>Cancelar</button>
+										</div>
+										<p class="text-xs text-slate-500">El cambio aplica desde su próxima acción en el panel.</p>
+									</form>
+								</td>
+							</tr>
+						{/if}
 						{#if resetId === u.id}
 							<tr class="bg-brand-50/40">
-								<td colspan="5" class="px-4 py-3">
+								<td colspan="6" class="px-4 py-3">
 									<form method="POST" onsubmit={saveReset} class="flex flex-wrap items-end gap-3">
 										<div>
 											<label for="r-password" class={ui.label}>Nueva contraseña para {u.email}</label>

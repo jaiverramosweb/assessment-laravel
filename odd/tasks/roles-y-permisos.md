@@ -16,7 +16,7 @@ Branch: `feat/roles-permisos` · Delivery: `ask-on-risk` · Runners: `php artisa
 | ID | Specs | Scope | Route | Status | Commit |
 |---|---|---|---|---|---|
 | T1 | S1,S2,S3,S5 | Migration (`access`, `permissions`), access policy, middleware (default deny + report scope), list filtering, user create/edit access, tests | inline (no writer reason); high risk (permissions, migration) → independent verifier | done (RED: 15 failed, no `access` column; GREEN 321 passed) | see git log |
-| T2 | S1,S2,S4 | Usuarios UI (access selector + client scope), sidebar/tabs/buttons hidden, shared `admin.access` prop, README | inline (no writer reason) | pending | |
+| T2 | S1,S2,S4 | Usuarios UI (access selector + client scope), sidebar/tabs/buttons hidden, shared `admin.access` prop, README | inline (no writer reason) | done (svelte-check 0 errors, `npm run build` ok; browser check pending: local `.env`/migrate denied) | see git log |
 
 ## Log
 

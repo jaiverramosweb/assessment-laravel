@@ -32,17 +32,25 @@
 	import { Link, page } from '@inertiajs/svelte';
 	import AdminLayout from '@/Layouts/AdminLayout.svelte';
 	import StatusBadge from '@/components/StatusBadge.svelte';
+	import type { SharedProps } from '@/types';
 
 	let { context, children }: { context: AssessmentContext; children: Snippet } = $props();
 
 	const base = $derived(`/admin/assessments/${context.assessment.id}`);
 	const pathname = $derived(new URL($page.url, 'http://x').pathname);
 
+	const full = $derived(($page.props as unknown as SharedProps).admin?.access.full ?? false);
+
+	// Limited admins (report-only) only get the Reportes and Mediciones tabs.
 	const tabs = $derived([
-		{ href: base, label: 'General' },
-		{ href: `${base}/preguntas`, label: `Preguntas (${context.questionCounts.total})` },
-		{ href: `${base}/participantes`, label: `Participantes (${context.participantCount})` },
-		{ href: `${base}/invitaciones`, label: 'Invitaciones' },
+		...(full
+			? [
+					{ href: base, label: 'General' },
+					{ href: `${base}/preguntas`, label: `Preguntas (${context.questionCounts.total})` },
+					{ href: `${base}/participantes`, label: `Participantes (${context.participantCount})` },
+					{ href: `${base}/invitaciones`, label: 'Invitaciones' }
+				]
+			: []),
 		{ href: `${base}/reportes`, label: 'Reportes' },
 		...(context.series ? [{ href: `${base}/mediciones`, label: `Mediciones (${context.series.length})` }] : [])
 	]);
