@@ -29,6 +29,14 @@
 
 	const createForm = useForm({ name: '', email: '', password: '', password_confirmation: '', ...accessDefaults() });
 	const createErrors = $derived($createForm.errors as Record<string, string | undefined>);
+	const hasCreateErrors = $derived(Object.keys(createErrors).length > 0);
+
+	// The section's open state is its own: binding `open` to the errors would close it on every
+	// form change (choosing a radio or checkbox). It only opens by itself when errors arrive.
+	let createOpen = $state(false);
+	$effect(() => {
+		if (hasCreateErrors) createOpen = true;
+	});
 
 	const clientNames = $derived(new Map(clients.map((c) => [c.id, c.name])));
 
@@ -121,7 +129,7 @@
 			</p>
 		</div>
 
-		<details class={ui.card} open={Object.keys(createErrors).length > 0}>
+		<details class={ui.card} bind:open={createOpen}>
 			<summary class="cursor-pointer text-sm font-semibold">Crear usuario</summary>
 			<form method="POST" onsubmit={create} class="mt-4 grid gap-3 sm:grid-cols-2">
 				<div>
